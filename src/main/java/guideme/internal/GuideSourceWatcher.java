@@ -24,8 +24,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import guideme.internal.platform.GuideMEPlatform;
 import net.minecraft.resources.Identifier;
-import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,7 @@ class GuideSourceWatcher implements AutoCloseable {
         // The namespace does not necessarily *need* to be a mod id, but if it is, the source pack needs to
         // follow the specific mod-id format. Otherwise we assume it's a resource pack where namespace == pack id,
         // which is also not 100% correct.
-        this.sourcePackId = ModList.get().isLoaded(namespace) ? "mod:" + namespace : namespace;
+        this.sourcePackId = GuideMEPlatform.get().isModLoaded(namespace) ? "mod:" + namespace : namespace;
         this.defaultLanguage = defaultLanguage;
         this.sourceFolder = sourceFolder;
         if (!Files.isDirectory(sourceFolder)) {

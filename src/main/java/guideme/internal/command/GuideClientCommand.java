@@ -1,6 +1,8 @@
 package guideme.internal.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import guideme.Guides;
 import guideme.internal.GuideMEClient;
 import guideme.internal.GuideRegistry;
@@ -10,20 +12,32 @@ import guideme.internal.siteexport.SiteExporter;
 import java.io.IOException;
 import java.nio.file.Files;
 import net.minecraft.client.Minecraft;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 
+/**
+ * The client-side {@code /guidemec} command. Since the command source type for client commands differs between
+ * loaders, registration is generic over the source type and loaders supply a {@link Feedback} adapter.
+ */
 public final class GuideClientCommand {
     private GuideClientCommand() {
     }
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        var rootCommand = Commands.literal("guidemec");
+    /**
+     * Adapts loader-specific client command sources for sending feedback.
+     */
+    public interface Feedback<S> {
+        void sendFailure(S source, Component message);
+
+        void sendSystemMessage(S source, Component message);
+    }
+
+    public static <S> void register(CommandDispatcher<S> dispatcher, Feedback<S> feedback) {
+        var rootCommand = LiteralArgumentBuilder.<S>literal("guidemec");
 
         rootCommand.then(
-                Commands.argument("guide", GuideIdArgument.argument())
-                        .then(Commands.literal("export")
+                RequiredArgumentBuilder
+                        .<S, net.minecraft.resources.Identifier>argument("guide", GuideIdArgument.argument())
+                        .then(LiteralArgumentBuilder.<S>literal("export")
                                 .executes(context -> {
                                     var guideId = GuideIdArgument.getGuide(context, "guide");
                                     var outputFolder = Minecraft.getInstance().gameDirectory.toPath()
@@ -31,15 +45,16 @@ public final class GuideClientCommand {
                                     try {
                                         Files.createDirectories(outputFolder);
                                     } catch (IOException e) {
-                                        context.getSource().sendFailure(Component
-                                                .literal("Failed to create output folder for export: " + outputFolder));
+                                        feedback.sendFailure(context.getSource(), Component
+                                                .literal("Failed to create output folder for export: "
+                                                        + outputFolder));
                                         return 1;
                                     }
 
                                     var guide = GuideRegistry.getById(guideId);
                                     if (guide == null) {
-                                        context.getSource()
-                                                .sendFailure(Component.literal("Couldn't find guide " + guideId));
+                                        feedback.sendFailure(context.getSource(),
+                                                Component.literal("Couldn't find guide " + guideId));
                                         return 1;
                                     }
 
@@ -47,23 +62,23 @@ public final class GuideClientCommand {
                                             .export(new ExportFeedbackSink() {
                                                 @Override
                                                 public void sendFeedback(Component message) {
-                                                    context.getSource().sendSystemMessage(message);
+                                                    feedback.sendSystemMessage(context.getSource(), message);
                                                 }
 
                                                 @Override
                                                 public void sendError(Component message) {
-                                                    context.getSource().sendFailure(message);
+                                                    feedback.sendFailure(context.getSource(), message);
                                                 }
                                             });
                                     return 0;
                                 }))
-                        .then(Commands.literal("open")
+                        .then(LiteralArgumentBuilder.<S>literal("open")
                                 .executes(context -> {
                                     var guideId = GuideIdArgument.getGuide(context, "guide");
                                     var guide = Guides.getById(guideId);
                                     if (guide == null) {
-                                        context.getSource()
-                                                .sendFailure(GuidebookText.ItemInvalidGuideId.text(guideId.toString()));
+                                        feedback.sendFailure(context.getSource(),
+                                                GuidebookText.ItemInvalidGuideId.text(guideId.toString()));
                                         return 1;
                                     }
 
@@ -71,7 +86,8 @@ public final class GuideClientCommand {
                                     return 0;
                                 })
                                 .then(
-                                        Commands.argument("page", PageAnchorArgument.argument())
+                                        RequiredArgumentBuilder
+                                                .<S, guideme.PageAnchor>argument("page", PageAnchorArgument.argument())
                                                 .executes(context -> {
                                                     var guideId = GuideIdArgument.getGuide(context, "guide");
                                                     var guide = Guides.getById(guideId);

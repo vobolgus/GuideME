@@ -19,6 +19,7 @@ import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockQuadOutput;
+import guideme.internal.platform.GuideMEClientPlatform;
 import net.minecraft.client.renderer.block.FluidRenderer;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -208,8 +209,9 @@ public class GuidebookLevelRenderer {
                     }
                 };
 
-                var customRenderer = fluidModelSet.get(fluidState).customRenderer();
-                if (customRenderer == null || !customRenderer.renderFluid(fluidRenderer, fluidState, level, pos, fluidOutput, blockState)) {
+                // Loader-specific hook for custom fluid renderers (a NeoForge extension)
+                if (!GuideMEClientPlatform.get().renderCustomFluid(fluidRenderer, fluidState, level, pos,
+                        fluidOutput, blockState)) {
                     fluidRenderer.tesselate(level, pos, fluidOutput, blockState, fluidState);
                 }
             }

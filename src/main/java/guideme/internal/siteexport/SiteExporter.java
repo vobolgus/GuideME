@@ -11,6 +11,8 @@ import guideme.indices.ItemIndex;
 import guideme.internal.GuideME;
 import guideme.internal.GuideOnStartup;
 import guideme.internal.siteexport.mdastpostprocess.PageExportPostProcessor;
+import guideme.internal.platform.GuideMEClientPlatform;
+import guideme.internal.platform.GuideMEPlatform;
 import guideme.internal.util.Platform;
 import guideme.navigation.NavigationNode;
 import guideme.siteexport.ExportableResourceProvider;
@@ -70,11 +72,6 @@ import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.crafting.display.FluidStackContentsFactory;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jetbrains.annotations.ApiStatus;
@@ -129,28 +126,22 @@ public class SiteExporter implements ResourceExporter {
      */
     public void exportOnNextTickAndExit(Runnable completionCallback, Consumer<Exception> errorCallback) {
         var exportDone = new MutableBoolean();
-        Consumer<ClientTickEvent.Post> listener = new Consumer<>() {
-            @Override
-            public void accept(ClientTickEvent.Post post) {
-                NeoForge.EVENT_BUS.unregister(this);
-
-                if (client.getOverlay() instanceof LoadingOverlay) {
-                    return; // Do nothing while it's loading
-                }
-
-                if (!exportDone.getValue()) {
-                    exportDone.setTrue();
-
-                    try {
-                        export();
-                    } catch (Exception e) {
-                        errorCallback.accept(e);
-                    }
-                    completionCallback.run();
-                }
+        GuideMEClientPlatform.get().runOnNextClientTick(() -> {
+            if (client.getOverlay() instanceof LoadingOverlay) {
+                return; // Do nothing while it's loading
             }
-        };
-        NeoForge.EVENT_BUS.addListener(listener);
+
+            if (!exportDone.getValue()) {
+                exportDone.setTrue();
+
+                try {
+                    export();
+                } catch (Exception e) {
+                    errorCallback.accept(e);
+                }
+                completionCallback.run();
+            }
+        });
     }
 
     public void export(ExportFeedbackSink feedback) {
@@ -196,10 +187,6 @@ public class SiteExporter implements ResourceExporter {
         fluids.add(fluid);
     }
 
-    public void referenceFluid(FluidStack fluid) {
-        fluids.add(fluid.getFluid());
-    }
-
     @Override
     public void referenceSlotDisplay(SlotDisplay display) {
         for (var stack : display.resolveForStacks(Platform.getSlotDisplayContext())) {
@@ -225,7 +212,7 @@ public class SiteExporter implements ResourceExporter {
             visitDisplays(recipeDisplay, display -> {
                 display.resolve(Platform.getSlotDisplayContext(), SlotDisplay.ItemStackContentsFactory.INSTANCE)
                         .forEach(this::referenceItem);
-                display.resolve(Platform.getSlotDisplayContext(), FluidStackContentsFactory.INSTANCE)
+                GuideMEClientPlatform.get().getFluidsInDisplay(display, Platform.getSlotDisplayContext())
                         .forEach(this::referenceFluid);
             });
         }
@@ -491,13 +478,12 @@ public class SiteExporter implements ResourceExporter {
             return modVersion;
         }
 
-        return ModList.get().getModContainerById(guide.getId().getNamespace())
-                .map(mc -> mc.getModInfo().getVersion().toString())
+        return GuideMEPlatform.get().getModVersion(guide.getId().getNamespace())
                 .orElse("unknown");
     }
 
     private String getGuideMeVersion() {
-        return ModList.get().getModContainerById(GuideME.MOD_ID).get().getModInfo().getVersion().toString();
+        return GuideMEPlatform.get().getModVersion(GuideME.MOD_ID).orElseThrow();
     }
 
     private Path resolvePath(Identifier id) {
@@ -597,15 +583,11 @@ public class SiteExporter implements ResourceExporter {
 
             LOG.info("Exporting fluids...");
             for (var fluid : fluids) {
-                var model = Minecraft.getInstance()
-                        .getModelManager()
-                        .getFluidStateModelSet()
-                        .get(fluid.defaultFluidState());
+                var fluidIcon = GuideMEClientPlatform.get().getFluidIcon(fluid);
                 String fluidId = BuiltInRegistries.FLUID.getKey(fluid).toString();
 
-
-                var sprite = model.stillMaterial().sprite();
-                var color = model.fluidTintSource() != null ? model.fluidTintSource().color(fluid.defaultFluidState()) : -1;
+                var sprite = fluidIcon.sprite();
+                var color = fluidIcon.tintColor();
 
                 var baseName = "!fluids/" + fluidId.replace(':', '/');
                 var iconPath = renderAndWrite(
@@ -625,7 +607,7 @@ public class SiteExporter implements ResourceExporter {
                 );
 
                 String absIconUrl = "/" + outputFolder.relativize(iconPath).toString().replace('\\', '/');
-                siteExport.addFluid(fluidId, new FluidStack(fluid, 1), absIconUrl);
+                siteExport.addFluid(fluidId, fluid, absIconUrl);
             }
         } finally {
             window.setWidth(previousWindowWidth);

@@ -1,20 +1,19 @@
 package guideme.scene.export;
 
-import java.util.Map;
+import java.util.Collection;
 import java.util.function.Consumer;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.resources.Identifier;
 
 class SpriteFinder {
     private final Node root;
     private final TextureAtlas spriteAtlasTexture;
 
-    public SpriteFinder(Map<Identifier, TextureAtlasSprite> sprites, TextureAtlas spriteAtlasTexture) {
+    public SpriteFinder(Collection<TextureAtlasSprite> sprites, TextureAtlas spriteAtlasTexture) {
         root = new Node(0.5f, 0.5f, 0.25f);
         this.spriteAtlasTexture = spriteAtlasTexture;
-        sprites.values().forEach(root::add);
+        sprites.forEach(root::add);
     }
 
     public TextureAtlasSprite find(float u, float v) {

@@ -7,6 +7,7 @@ import guideme.PageAnchor;
 import guideme.indices.ItemIndex;
 import guideme.internal.GuideMEClient;
 import guideme.internal.GuideRegistry;
+import guideme.internal.platform.GuideMEClientPlatform;
 import guideme.internal.GuidebookText;
 import guideme.internal.screen.GuideScreen;
 import guideme.ui.GuideUiHost;
@@ -22,18 +23,19 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.settings.KeyConflictContext;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 
 /**
- * Adds a "Hold X to show guide" tooltip
+ * Adds a "Hold X to show guide" tooltip.
+ * <p>
+ * The loader-specific client entrypoint creates the key mapping (potentially with loader-specific conflict-context
+ * settings), registers it, passes it to {@link #init} and forwards item tooltip events to {@link #onItemTooltip} as
+ * well as the end of every client tick to {@link #onClientTickEnd()}.
  */
 public final class OpenGuideHotkey {
-    private static final KeyMapping OPEN_GUIDE_MAPPING = new KeyMapping(
-            "key.guideme.guide", KeyConflictContext.GUI, InputConstants.Type.KEYSYM, InputConstants.KEY_G,
-            GuideMEClient.KEYBIND_CATEGORY);
+    public static final String HOTKEY_TRANSLATION_KEY = "key.guideme.guide";
+    public static final int DEFAULT_KEY = InputConstants.KEY_G;
+
+    private static KeyMapping openGuideMapping;
 
     private static final int TICKS_TO_OPEN = 10;
 
@@ -53,17 +55,23 @@ public final class OpenGuideHotkey {
     private record FoundPage(Guide guide, PageAnchor page) {
     }
 
-    public static void init() {
-        NeoForge.EVENT_BUS.addListener(
-                (ItemTooltipEvent evt) -> {
-                    // Ignore events fired for anything but the current local player,
-                    // for example while building the search tree for the creative menu
-                    if (evt.getEntity() != Minecraft.getInstance().player) {
-                        return;
-                    }
-                    handleTooltip(evt.getItemStack(), evt.getFlags(), evt.getToolTip());
-                });
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post evt) -> newTick = true);
+    public static void init(KeyMapping mapping) {
+        openGuideMapping = mapping;
+    }
+
+    /**
+     * Called by the loader for item tooltips shown to the local player. Loaders should not forward tooltip events
+     * fired for other purposes (i.e. while building the search tree for the creative menu) where they can detect this.
+     */
+    public static void onItemTooltip(ItemStack itemStack, TooltipFlag tooltipFlag, List<Component> lines) {
+        handleTooltip(itemStack, tooltipFlag, lines);
+    }
+
+    /**
+     * Called by the loader at the end of every client tick.
+     */
+    public static void onClientTickEnd() {
+        newTick = true;
     }
 
     private static void handleTooltip(ItemStack itemStack, TooltipFlag tooltipFlag, List<Component> lines) {
@@ -195,17 +203,17 @@ public final class OpenGuideHotkey {
      * This circumvents any current UI key handling.
      */
     private static boolean isKeyHeld() {
-        int keyCode = getHotkey().getKey().getValue();
+        int keyCode = GuideMEClientPlatform.get().getBoundKey(getHotkey()).getValue();
         var window = Minecraft.getInstance().getWindow();
 
         return InputConstants.isKeyDown(window, keyCode);
     }
 
     private static boolean isKeyBound() {
-        return !OPEN_GUIDE_MAPPING.isUnbound();
+        return !getHotkey().isUnbound();
     }
 
     public static KeyMapping getHotkey() {
-        return OPEN_GUIDE_MAPPING;
+        return Objects.requireNonNull(openGuideMapping, "Open guide hotkey is not initialized");
     }
 }

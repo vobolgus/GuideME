@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import guideme.internal.util.PipelineBuilders;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -32,7 +33,7 @@ import org.joml.Vector3f;
 @ApiStatus.Internal
 public final class InWorldAnnotationRenderer {
 
-    public static final RenderPipeline OCCLUDED_PIPELINE = RenderPipelines.ITEM_TRANSLUCENT.toBuilder()
+    public static final RenderPipeline OCCLUDED_PIPELINE = PipelineBuilders.toBuilder(RenderPipelines.ITEM_TRANSLUCENT)
             .withLocation(GuideME.makeId("pipeline/annotation_occluded"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN, false))

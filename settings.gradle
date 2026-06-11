@@ -2,11 +2,20 @@ import org.gradle.api.initialization.resolve.RepositoriesMode
 import org.gradle.api.initialization.resolve.RulesMode
 
 pluginManagement {
+    repositories {
+        maven {
+            name = 'FabricMC'
+            url = 'https://maven.fabricmc.net/'
+        }
+        gradlePluginPortal()
+    }
     plugins {
         id 'com.gradleup.shadow' version '9.3.0'
         // https://projects.neoforged.net/neoforged/ModDevGradle
-        id 'net.neoforged.moddev' version '2.0.134'
-        id 'net.neoforged.moddev.repositories' version '2.0.134'
+        id 'net.neoforged.moddev' version '2.0.141'
+        id 'net.neoforged.moddev.repositories' version '2.0.141'
+        // https://fabricmc.net/develop/
+        id 'net.fabricmc.fabric-loom' version '1.17.8'
     }
 }
 
@@ -16,12 +25,35 @@ plugins {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    // fabric-loom injects project-level repositories (e.g. LoomLocalRemappedMods), which is
+    // incompatible with FAIL_ON_PROJECT_REPOS. Project repos take precedence where declared;
+    // everything else continues to resolve from the settings-level repositories below.
+    repositoriesMode = RepositoriesMode.PREFER_PROJECT
     rulesMode = RulesMode.FAIL_ON_PROJECT_RULES
     repositories {
+        maven {
+            name = 'FabricMC'
+            url = 'https://maven.fabricmc.net/'
+            content {
+                includeGroupAndSubgroups 'net.fabricmc'
+            }
+        }
+        maven {
+            name = 'MojangLibraries'
+            url = 'https://libraries.minecraft.net/'
+            content {
+                includeGroup 'com.mojang'
+            }
+        }
         mavenCentral()
     }
 }
 
 rootProject.name = 'guideme'
 include 'markdown'
+
+include ':neoforge'
+project(':neoforge').projectDir = file('loader/neoforge')
+
+include ':fabric'
+project(':fabric').projectDir = file('loader/fabric')

@@ -20,11 +20,11 @@ public final class DashedRectangle {
     }
 
     public static void render(RenderContext context, LytRect bounds, DashPattern pattern) {
-        context.guiGraphics().submitGuiElementRenderState(new RenderState(
+        context.guiGraphics().guiRenderState.addGuiElement(new RenderState(
                 new Matrix3x2f(context.poseStack()),
                 bounds,
                 pattern,
-                context.guiGraphics().peekScissorStack()));
+                context.guiGraphics().scissorStack.peek()));
     }
 
     private static void buildHorizontalDashedLine(VertexConsumer builder, Matrix3x2f pose,

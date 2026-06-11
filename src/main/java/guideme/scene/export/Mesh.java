@@ -66,7 +66,7 @@ record Mesh(MeshData.DrawState drawState,
 
         var uvSupplier = getUvSupplier(offset, uvElement);
         // TODO: Should cache this...
-        var spriteFinder = new SpriteFinder(textureAtlas.getTextures(), textureAtlas);
+        var spriteFinder = new SpriteFinder(textureAtlas.sprites, textureAtlas);
 
         return streamQuadMidpoints(uvSupplier)
                 .map(uvPos -> spriteFinder.find(uvPos.x, uvPos.y))

@@ -29,7 +29,7 @@ public final class NavigationUtil {
                                             navigation.iconComponents(), navigation.iconItemId(), err));
                     icon = new ItemStackTemplate(iconItem, 1, patch.orElse(DataComponentPatch.EMPTY));
                 } else {
-                    icon = new ItemStackTemplate(iconItem);
+                    icon = new ItemStackTemplate(iconItem, 1, DataComponentPatch.EMPTY);
                 }
             }
 

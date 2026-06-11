@@ -33,10 +33,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
+import guideme.internal.platform.GuideMEPlatform;
 import net.minecraft.resources.Identifier;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforgespi.language.IModInfo;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -262,10 +260,7 @@ public class GuideScreen extends DocumentScreen implements GuideUiHost {
                 return null;
             }
 
-            return ModList.get().getModContainerById(modId)
-                    .map(ModContainer::getModInfo)
-                    .map(IModInfo::getDisplayName)
-                    .orElse(null);
+            return GuideMEPlatform.get().getModDisplayName(modId);
         }
 
         // Only show the source marker for pages that are not native to the guides mod

@@ -2,12 +2,14 @@ package guideme.internal.network;
 
 import guideme.PageAnchor;
 import guideme.internal.GuideME;
+import guideme.internal.GuideMEProxy;
 import java.util.Optional;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Player;
 
 public record OpenGuideRequest(Identifier guideId,
         Optional<PageAnchor> pageAnchor) implements CustomPacketPayload {
@@ -36,5 +38,17 @@ public record OpenGuideRequest(Identifier guideId,
     @Override
     public Type<? extends CustomPacketPayload> type() {
         return TYPE;
+    }
+
+    /**
+     * Handles this request on the receiving (client) side. Called by the loader-specific packet handlers.
+     */
+    public void handle(Player player) {
+        var anchor = pageAnchor().orElse(null);
+        if (anchor != null) {
+            GuideMEProxy.instance().openGuide(player, guideId(), anchor);
+        } else {
+            GuideMEProxy.instance().openGuide(player, guideId());
+        }
     }
 }

@@ -40,7 +40,7 @@ import org.joml.Matrix3x2f;
  * Utility class for drawing rectangular textures in the UI.
  */
 public final class Blitter {
-    public static final RenderPipeline GUI_TEXTURED_OPAQUE = RenderPipelines.GUI_TEXTURED.toBuilder()
+    public static final RenderPipeline GUI_TEXTURED_OPAQUE = PipelineBuilders.toBuilder(RenderPipelines.GUI_TEXTURED)
             .withLocation(GuideME.makeId("pipeline/gui_textured_opaque"))
             .withColorTargetState(new ColorTargetState(Optional.empty(), ColorTargetState.WRITE_COLOR))
             .build();
@@ -283,7 +283,7 @@ public final class Blitter {
         }
 
         var texture = Minecraft.getInstance().getTextureManager().getTexture(this.texture);
-        guiGraphics.submitGuiElementRenderState(new BlitRenderState(
+        guiGraphics.guiRenderState.addGuiElement(new BlitRenderState(
                 pipeline,
                 TextureSetup.singleTexture(texture.getTextureView(), texture.getSampler()),
                 new Matrix3x2f(guiGraphics.pose()),
@@ -292,6 +292,6 @@ public final class Blitter {
                 minU, maxU,
                 minV, maxV,
                 ARGB.color(a, r, g, b),
-                guiGraphics.peekScissorStack()));
+                guiGraphics.scissorStack.peek()));
     }
 }

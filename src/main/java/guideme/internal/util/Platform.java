@@ -3,6 +3,7 @@ package guideme.internal.util;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import guideme.internal.GuideMEClient;
+import guideme.internal.platform.GuideMEClientPlatform;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,7 +22,6 @@ import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.block.entity.FuelValues;
 import net.minecraft.world.level.material.Fluid;
-import net.neoforged.neoforge.fluids.FluidStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +29,7 @@ public class Platform {
     private static final Logger LOG = LoggerFactory.getLogger(Platform.class);
 
     // This hack is used to allow tests and the guidebook to provide a recipe manager before the client loads a world
-    public static RecipeManager fallbackClientRecipeManager;
+    public static RecipeMap fallbackClientRecipeMap;
     public static RegistryAccess fallbackClientRegistryAccess;
 
     public static RegistryAccess getClientRegistryAccess() {
@@ -40,8 +40,7 @@ public class Platform {
     }
 
     public static Component getFluidDisplayName(Fluid fluid) {
-        var fluidStack = new FluidStack(fluid, 1);
-        return fluidStack.getHoverName();
+        return GuideMEClientPlatform.get().getFluidName(fluid);
     }
 
     public static byte[] exportAsPng(NativeImage nativeImage) throws IOException {
@@ -83,8 +82,8 @@ public class Platform {
     }
 
     public static RecipeMap getRecipeMap() {
-        if (!isRecipeTypeAvailable(RecipeType.CRAFTING) && fallbackClientRecipeManager != null) {
-            return fallbackClientRecipeManager.recipeMap();
+        if (!isRecipeTypeAvailable(RecipeType.CRAFTING) && fallbackClientRecipeMap != null) {
+            return fallbackClientRecipeMap;
         }
         return GuideMEClient.instance().getRecipeMap();
     }

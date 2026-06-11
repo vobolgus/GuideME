@@ -297,12 +297,12 @@ public class LytGuidebookScene extends LytBox {
             }
 
             var screenBounds = bounds.toScreenRectangle().transformMaxBounds(context.poseStack());
-            var scissorArea = context.guiGraphics().peekScissorStack();
+            var scissorArea = context.guiGraphics().scissorStack.peek();
             // Pre-apply scissor area
             screenBounds = scissorArea != null ? scissorArea.intersection(screenBounds) : screenBounds;
             if (screenBounds != null) {
                 GuiGraphicsExtractor guiGraphics = context.guiGraphics();
-                guiGraphics.submitPictureInPictureRenderState(new ScenePictureInPictureRenderer.State(
+                guiGraphics.guiRenderState.addPicturesInPictureState(new ScenePictureInPictureRenderer.State(
                         context.lightDarkMode(),
                         new Matrix3x2f(context.poseStack()),
                         bounds.x(),

@@ -3,61 +3,44 @@ package guideme.internal;
 import guideme.Guide;
 import guideme.PageAnchor;
 import guideme.color.LightDarkMode;
-import guideme.internal.command.GuideClientCommand;
-import guideme.internal.command.StructureCommands;
-import guideme.internal.data.GuideMELanguageProvider;
-import guideme.internal.data.GuideMEModelProvider;
-import guideme.internal.hotkey.OpenGuideHotkey;
-import guideme.internal.item.GuideItemDispatchUnbaked;
-import guideme.internal.scene.ScenePictureInPictureRenderer;
+import guideme.internal.platform.ConfigBackend;
 import guideme.internal.screen.GlobalInMemoryHistory;
 import guideme.internal.screen.GuideNavigation;
 import guideme.internal.search.GuideSearch;
 import guideme.internal.siteexport.SiteExportOnStartup;
-import guideme.internal.siteexport.TextureDownloader;
-import guideme.internal.util.Blitter;
-import guideme.render.GuiAssets;
-import guideme.scene.annotation.InWorldAnnotationRenderer;
 import java.util.Objects;
 import java.util.Set;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.data.AtlasIds;
-import net.minecraft.data.DataGenerator;
-import net.minecraft.data.PackOutput;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.crafting.RecipeMap;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RecipesReceivedEvent;
-import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
-import net.neoforged.neoforge.client.event.RegisterItemModelsEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RegisterPictureInPictureRenderersEvent;
-import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
-import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
-import net.neoforged.neoforge.client.gui.ConfigurationScreen;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
-import net.neoforged.neoforge.common.ModConfigSpec;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.data.event.GatherDataEvent;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Mod(value = GuideME.MOD_ID, dist = Dist.CLIENT)
+/**
+ * Loader-neutral client-side singleton. Constructed by the loader-specific client entrypoint, which is also
+ * responsible for wiring the following registrations and events to the loader (see the per-loader projects):
+ * <ul>
+ * <li>Registering {@link #GUIDE_CLICK_EVENT} as a sound event under {@link #GUIDE_CLICK_ID}.</li>
+ * <li>Registering the {@link #KEYBIND_CATEGORY} keybind category and the open-guide hotkey (see
+ * {@link guideme.internal.hotkey.OpenGuideHotkey#init}).</li>
+ * <li>Registering the item model dispatch codec {@link guideme.internal.item.GuideItemDispatchUnbaked}.</li>
+ * <li>Registering the custom render pipelines ({@code Blitter.GUI_TEXTURED_OPAQUE}, {@code TextureDownloader.COPY_BLIT},
+ * {@code InWorldAnnotationRenderer.OCCLUDED_PIPELINE}) where the loader requires pre-registration.</li>
+ * <li>Registering the picture-in-picture renderer {@code ScenePictureInPictureRenderer}.</li>
+ * <li>Registering {@link GuideReloadListener} as a client resource reload listener, and calling
+ * {@code GuiAssets.resetSprites()} when the GUI sprite atlas is rebuilt.</li>
+ * <li>Calling {@link #clientTickStart()} at the start and
+ * {@link guideme.internal.hotkey.OpenGuideHotkey#onClientTickEnd()} at the end of each client tick.</li>
+ * <li>Forwarding item tooltips to {@link guideme.internal.hotkey.OpenGuideHotkey#onItemTooltip}.</li>
+ * <li>Registering client commands ({@code GuideClientCommand}) and the single-player structure commands
+ * ({@code StructureCommands}).</li>
+ * <li>Receiving the open-guide packet and recipe synchronization, then calling {@link #onRecipesReceived} and
+ * {@link #onClientDisconnected}.</li>
+ * </ul>
+ */
 public class GuideMEClient {
     private static final Logger LOG = LoggerFactory.getLogger(GuideMEClient.class);
 
@@ -73,68 +56,40 @@ public class GuideMEClient {
     private RecipeMap recipeMap = RecipeMap.EMPTY;
     private Set<RecipeType<?>> availableRecipeTypes = Set.of();
 
-    public GuideMEClient(ModContainer modContainer, IEventBus modBus) {
+    private final ClientConfig clientConfig;
+
+    public GuideMEClient(ConfigBackend configBackend) {
         INSTANCE = this;
         GuideME.PROXY = new GuideMEClientProxy();
 
-        modContainer.registerConfig(ModConfig.Type.CLIENT, clientConfig.spec, "guideme.toml");
-
-        modBus.addListener(RegisterEvent.class, e -> {
-            if (e.getRegistryKey() == Registries.SOUND_EVENT) {
-                Registry.register(BuiltInRegistries.SOUND_EVENT, GUIDE_CLICK_ID, GUIDE_CLICK_EVENT);
-            }
-        });
-        modBus.addListener(this::gatherData);
-        modBus.addListener(this::registerHotkeys);
-        modBus.addListener(this::registerItemModel);
-        modBus.addListener(this::registerRenderPipelines);
-        modBus.addListener(this::registerPipRenderers);
-
-        NeoForge.EVENT_BUS.addListener(this::registerClientCommands);
-        NeoForge.EVENT_BUS.addListener(this::registerCommands);
-        modBus.addListener(this::resetSprites);
-
-        OpenGuideHotkey.init();
-
-        modBus.addListener((AddClientReloadListenersEvent evt) -> {
-            evt.addListener(GuideReloadListener.ID, new GuideReloadListener());
-        });
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre evt) -> {
-            search.processWork();
-            processDevWatchers();
-        });
+        this.clientConfig = new ClientConfig(configBackend);
 
         GuideOnStartup.init();
         SiteExportOnStartup.init();
-
-        modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
-
-        NeoForge.EVENT_BUS.addListener(this::onReceiveRecipes);
-        NeoForge.EVENT_BUS.addListener(this::onPlayerDisconnect);
     }
 
-    private void onReceiveRecipes(RecipesReceivedEvent event) {
-        recipeMap = event.getRecipeMap();
-        availableRecipeTypes = Set.copyOf(event.getRecipeTypes());
+    /**
+     * Called by the loader at the start of every client tick.
+     */
+    public void clientTickStart() {
+        search.processWork();
+        processDevWatchers();
     }
 
-    private void onPlayerDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
+    /**
+     * Called by the loader when the server has synchronized recipes to this client.
+     */
+    public void onRecipesReceived(RecipeMap recipeMap, Set<RecipeType<?>> availableRecipeTypes) {
+        this.recipeMap = recipeMap;
+        this.availableRecipeTypes = Set.copyOf(availableRecipeTypes);
+    }
+
+    /**
+     * Called by the loader when the player disconnects from a server.
+     */
+    public void onClientDisconnected() {
         recipeMap = RecipeMap.EMPTY;
         availableRecipeTypes = Set.of();
-    }
-
-    private void registerRenderPipelines(RegisterRenderPipelinesEvent event) {
-        event.registerPipeline(Blitter.GUI_TEXTURED_OPAQUE);
-        event.registerPipeline(TextureDownloader.COPY_BLIT);
-        event.registerPipeline(InWorldAnnotationRenderer.OCCLUDED_PIPELINE);
-    }
-
-    private void registerPipRenderers(RegisterPictureInPictureRenderersEvent event) {
-        event.register(ScenePictureInPictureRenderer.State.class, ScenePictureInPictureRenderer::new);
-    }
-
-    private void registerItemModel(RegisterItemModelsEvent event) {
-        event.register(GuideItemDispatchUnbaked.ID, GuideItemDispatchUnbaked.CODEC);
     }
 
     private void processDevWatchers() {
@@ -147,64 +102,34 @@ public class GuideMEClient {
         return LightDarkMode.LIGHT_MODE;
     }
 
-    private void resetSprites(TextureAtlasStitchedEvent event) {
-        if (event.getAtlas().location().equals(AtlasIds.GUI)) {
-            GuiAssets.resetSprites();
-        }
-    }
-
-    private void registerHotkeys(RegisterKeyMappingsEvent e) {
-        e.registerCategory(KEYBIND_CATEGORY);
-        e.register(OpenGuideHotkey.getHotkey());
-    }
-
     public static GuideMEClient instance() {
         return Objects.requireNonNull(INSTANCE, "Mod is not initialized");
     }
 
-    private final ClientConfig clientConfig = new ClientConfig();
-
-    private void registerClientCommands(RegisterClientCommandsEvent evt) {
-        var dispatcher = evt.getDispatcher();
-        GuideClientCommand.register(dispatcher);
-    }
-
-    // These are meant for command blocks only usable in single player
-    private void registerCommands(RegisterCommandsEvent event) {
-        StructureCommands.register(event.getDispatcher());
-    }
-
-    private void gatherData(GatherDataEvent.Client event) {
-        DataGenerator gen = event.getGenerator();
-        PackOutput packOutput = gen.getPackOutput();
-        gen.addProvider(true, new GuideMELanguageProvider(packOutput));
-        gen.addProvider(true, new GuideMEModelProvider(packOutput));
-    }
-
     public boolean isShowDebugGuiOverlays() {
-        return clientConfig.showDebugGuiOverlays.getAsBoolean();
+        return clientConfig.showDebugGuiOverlays.get();
     }
 
     public boolean isAdaptiveScalingEnabled() {
-        return clientConfig.adaptiveScaling.getAsBoolean();
+        return clientConfig.adaptiveScaling.get();
     }
 
     public boolean isIgnoreTranslatedGuides() {
-        return clientConfig.ignoreTranslatedGuides.getAsBoolean();
+        return clientConfig.ignoreTranslatedGuides.get();
     }
 
     public boolean isHideMissingRecipeErrors() {
-        return clientConfig.hideMissingRecipeErrors.getAsBoolean();
+        return clientConfig.hideMissingRecipeErrors.get();
     }
 
     public boolean isFullWidthLayout() {
-        return clientConfig.fullWidthLayout.getAsBoolean();
+        return clientConfig.fullWidthLayout.get();
     }
 
     public void setFullWidthLayout(boolean fullWidth) {
         if (fullWidth != isFullWidthLayout()) {
             clientConfig.fullWidthLayout.set(fullWidth);
-            clientConfig.spec.save();
+            clientConfig.backend.save();
             var minecraft = Minecraft.getInstance();
             var screen = minecraft.screen;
             if (screen != null) {
@@ -253,44 +178,30 @@ public class GuideMEClient {
     }
 
     private static class ClientConfig {
-        final ModConfigSpec spec;
-        final ModConfigSpec.BooleanValue adaptiveScaling;
-        final ModConfigSpec.BooleanValue showDebugGuiOverlays;
-        final ModConfigSpec.BooleanValue fullWidthLayout;
-        final ModConfigSpec.BooleanValue ignoreTranslatedGuides;
-        final ModConfigSpec.BooleanValue hideMissingRecipeErrors;
+        final ConfigBackend backend;
+        final ConfigBackend.BooleanOption adaptiveScaling;
+        final ConfigBackend.BooleanOption showDebugGuiOverlays;
+        final ConfigBackend.BooleanOption fullWidthLayout;
+        final ConfigBackend.BooleanOption ignoreTranslatedGuides;
+        final ConfigBackend.BooleanOption hideMissingRecipeErrors;
 
-        public ClientConfig() {
-            var builder = new ModConfigSpec.Builder();
+        public ClientConfig(ConfigBackend backend) {
+            this.backend = backend;
 
-            builder.push("guides");
-            ignoreTranslatedGuides = builder
-                    .comment("Never load translated guide pages for your current language.")
-                    .define("ignoreTranslatedGuides", false);
-            hideMissingRecipeErrors = builder
-                    .comment(
-                            "Never show errors in guides when recipes can't be found (i.e. because they were hidden by a datapack).")
-                    .define("hideMissingRecipeErrors", false);
-            builder.pop();
+            ignoreTranslatedGuides = backend.defineBoolean("guides", "ignoreTranslatedGuides", false,
+                    "Never load translated guide pages for your current language.");
+            hideMissingRecipeErrors = backend.defineBoolean("guides", "hideMissingRecipeErrors", false,
+                    "Never show errors in guides when recipes can't be found (i.e. because they were hidden by a datapack).");
 
-            builder.push("gui");
-            adaptiveScaling = builder
-                    .comment(
-                            "Adapt GUI scaling for the Guide screen to fix Minecraft font issues at GUI scale 1 and 3.")
-                    .define("adaptiveScaling", true);
-            fullWidthLayout = builder
-                    .comment(
-                            "Use the full width of the screen for the guide when it is opened.")
-                    .define("fullWidthLayout", true);
-            builder.pop();
+            adaptiveScaling = backend.defineBoolean("gui", "adaptiveScaling", true,
+                    "Adapt GUI scaling for the Guide screen to fix Minecraft font issues at GUI scale 1 and 3.");
+            fullWidthLayout = backend.defineBoolean("gui", "fullWidthLayout", true,
+                    "Use the full width of the screen for the guide when it is opened.");
 
-            builder.push("debug");
-            showDebugGuiOverlays = builder
-                    .comment("Show debugging overlays in GUI on mouse-over.")
-                    .define("showDebugGuiOverlays", false);
-            builder.pop();
+            showDebugGuiOverlays = backend.defineBoolean("debug", "showDebugGuiOverlays", false,
+                    "Show debugging overlays in GUI on mouse-over.");
 
-            spec = builder.build();
+            backend.finishLoading();
         }
     }
 }

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "guideme",
+  "version": "${version}",
+  "name": "GuideME",
+  "description": "GuideME offers the foundation for your Minecraft guidebook needs, be it for mods or modpacks.",
+  "authors": [
+    "shartte",
+    "Applied Energistics Team"
+  ],
+  "contact": {
+    "homepage": "https://guideme.appliedenergistics.org",
+    "sources": "https://github.com/AppliedEnergistics/GuideME",
+    "issues": "https://github.com/AppliedEnergistics/GuideME/issues"
+  },
+  "license": "LGPL-3.0-only",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "guideme.internal.fabric.GuideMEFabric"
+    ],
+    "client": [
+      "guideme.internal.fabric.client.GuideMEFabricClient"
+    ]
+  },
+  "mixins": [
+    "guideme.mixins.json",
+    "guideme.optional.mixins.json"
+  ],
+  "accessWidener": "guideme.accesswidener",
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "minecraft": "~${minecraft_version}"
+  }
+}

@@ -54,7 +54,7 @@ public final class SimpleRenderContext implements RenderContext {
             ColorValue bottomRight,
             ColorValue bottomLeft) {
 
-        guiGraphics.submitGuiElementRenderState(new GradientColoredRectangleRenderState(
+        guiGraphics.guiRenderState.addGuiElement(new GradientColoredRectangleRenderState(
                 pipeline,
                 TextureSetup.noTexture(),
                 new Matrix3x2f(poseStack()),
@@ -66,7 +66,7 @@ public final class SimpleRenderContext implements RenderContext {
                 resolveColor(topRight),
                 resolveColor(bottomRight),
                 resolveColor(bottomLeft),
-                guiGraphics().peekScissorStack()));
+                guiGraphics().scissorStack.peek()));
     }
 
     @Override
@@ -74,7 +74,7 @@ public final class SimpleRenderContext implements RenderContext {
             ColorValue bottomRight, ColorValue bottomLeft, float u0, float v0, float u1, float v1) {
 
         var texture = Minecraft.getInstance().getTextureManager().getTexture(textureId);
-        guiGraphics.submitGuiElementRenderState(new GradientBlitRenderState(
+        guiGraphics.guiRenderState.addGuiElement(new GradientBlitRenderState(
                 RenderPipelines.GUI_TEXTURED,
                 TextureSetup.singleTexture(texture.getTextureView(), texture.getSampler()),
                 new Matrix3x2f(poseStack()),
@@ -90,12 +90,12 @@ public final class SimpleRenderContext implements RenderContext {
                 resolveColor(topRight),
                 resolveColor(bottomRight),
                 resolveColor(bottomLeft),
-                guiGraphics().peekScissorStack()));
+                guiGraphics().scissorStack.peek()));
     }
 
     @Override
     public void fillTriangle(Vector2f p1, Vector2f p2, Vector2f p3, ColorValue color) {
-        guiGraphics.submitGuiElementRenderState(new FillTriangleRenderState(
+        guiGraphics.guiRenderState.addGuiElement(new FillTriangleRenderState(
                 RenderPipelines.GUI,
                 TextureSetup.noTexture(),
                 new Matrix3x2f(poseStack()),
@@ -103,7 +103,7 @@ public final class SimpleRenderContext implements RenderContext {
                 p2,
                 p3,
                 resolveColor(color),
-                guiGraphics().peekScissorStack()));
+                guiGraphics().scissorStack.peek()));
     }
 
     @Override

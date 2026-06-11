@@ -2,14 +2,13 @@ package guideme.internal;
 
 import guideme.Guides;
 import guideme.PageAnchor;
+import guideme.internal.platform.GuideMEClientPlatform;
+import guideme.internal.platform.GuideMEPlatform;
 import guideme.internal.screen.GuideScreen;
 import guideme.internal.util.Platform;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.commands.Commands;
 import net.minecraft.resources.Identifier;
@@ -23,12 +22,8 @@ import net.minecraft.server.packs.resources.MultiPackResourceManager;
 import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.tags.TagLoader;
 import net.minecraft.world.flag.FeatureFlagSet;
+import net.minecraft.world.item.crafting.RecipeMap;
 import net.minecraft.world.level.validation.DirectoryValidator;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.resource.ResourcePackLoader;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -50,8 +45,8 @@ public final class GuideOnStartup {
 
         if (!guidesToValidate.isEmpty() || showOnStartup != null) {
             var guideOpenedOnce = new MutableBoolean(false);
-            NeoForge.EVENT_BUS.addListener((ScreenEvent.Opening e) -> {
-                if (e.getNewScreen() instanceof TitleScreen && !guideOpenedOnce.booleanValue()) {
+            GuideMEClientPlatform.get().interceptScreenOpening(newScreen -> {
+                if (newScreen instanceof TitleScreen && !guideOpenedOnce.booleanValue()) {
                     guideOpenedOnce.setTrue();
                     GuideOnStartup.runDatapackReload();
 
@@ -74,7 +69,7 @@ public final class GuideOnStartup {
                                 if (anchor == null) {
                                     anchor = PageAnchor.page(guide.getStartPage());
                                 }
-                                e.setNewScreen(GuideScreen.openNew(guide, anchor));
+                                return GuideScreen.openNew(guide, anchor);
                             } catch (Exception ex) {
                                 LOG.error("Failed to open {}", showOnStartup, ex);
                                 System.exit(1);
@@ -82,6 +77,7 @@ public final class GuideOnStartup {
                         }
                     }
                 }
+                return null;
             });
         }
     }
@@ -116,34 +112,6 @@ public final class GuideOnStartup {
         return guidesToValidate;
     }
 
-    /**
-     * Returns a future that resolves when the client finished starting up.
-     */
-    public static CompletableFuture<Minecraft> afterClientStart(IEventBus modEventBus) {
-        var future = new CompletableFuture<Minecraft>();
-
-        modEventBus.addListener((FMLClientSetupEvent evt) -> {
-            var client = Minecraft.getInstance();
-            CompletableFuture<?> reload;
-
-            if (client.getOverlay() instanceof LoadingOverlay loadingOverlay) {
-                reload = loadingOverlay.reload.done();
-            } else {
-                reload = CompletableFuture.completedFuture(null);
-            }
-
-            reload.whenCompleteAsync((o, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                } else {
-                    future.complete(client);
-                }
-            }, client);
-        });
-
-        return future;
-    }
-
     // Run a fake datapack reload to properly compile the page (Recipes, Tags, etc.)
     // Only used when we try to compile pages before entering a world (validation, show on startup)
     public static void runDatapackReload() {
@@ -152,8 +120,7 @@ public final class GuideOnStartup {
 
             PackRepository packRepository = new PackRepository(
                     new ServerPacksSource(new DirectoryValidator(path -> false)));
-            // This fires AddPackFindersEvent but it's probably ok.
-            ResourcePackLoader.populatePackRepository(packRepository, PackType.SERVER_DATA, true);
+            GuideMEPlatform.get().populateDatapackRepository(packRepository);
             packRepository.reload();
             packRepository.setSelected(packRepository.getAvailableIds());
 
@@ -194,7 +161,7 @@ public final class GuideOnStartup {
                         }
                     }).get();
             stuff.updateComponentsAndStaticRegistryTags();
-            Platform.fallbackClientRecipeManager = stuff.getRecipeManager();
+            Platform.fallbackClientRecipeMap = RecipeMap.create(stuff.getRecipeManager().getRecipes());
             Platform.fallbackClientRegistryAccess = layeredAccess.compositeAccess();
         } catch (Exception e) {
             throw new RuntimeException(e);

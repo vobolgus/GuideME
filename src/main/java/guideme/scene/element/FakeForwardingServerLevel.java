@@ -28,7 +28,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipBlockStateContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.ColorResolver;
@@ -61,9 +60,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.ticks.LevelTickAccess;
 import net.minecraft.world.ticks.TickPriority;
-import net.neoforged.neoforge.common.world.AuxiliaryLightManager;
-import net.neoforged.neoforge.model.data.ModelData;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -76,8 +72,8 @@ import org.jetbrains.annotations.Nullable;
  * {@link net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate#placeInWorld} only makes use of
  * the server level in specific circumstances we don't use, this should continue to work.
  */
-class FakeForwardingServerLevel implements ServerLevelAccessor {
-    private final LevelAccessor delegate;
+abstract class FakeForwardingServerLevel implements ServerLevelAccessor {
+    protected final LevelAccessor delegate;
 
     public FakeForwardingServerLevel(LevelAccessor delegate) {
         this.delegate = delegate;
@@ -677,27 +673,6 @@ class FakeForwardingServerLevel implements ServerLevelAccessor {
     @Override
     public void gameEvent(ResourceKey<GameEvent> p_316780_, BlockPos p_316509_, GameEvent.Context p_316524_) {
         delegate.gameEvent(p_316780_, p_316509_, p_316524_);
-    }
-
-    @Override
-    public boolean isAreaLoaded(BlockPos center, int range) {
-        return delegate.isAreaLoaded(center, range);
-    }
-
-    @Override
-    @ApiStatus.NonExtendable
-    public @Nullable AuxiliaryLightManager getAuxLightManager(BlockPos pos) {
-        return delegate.getAuxLightManager(pos);
-    }
-
-    @Override
-    public @Nullable AuxiliaryLightManager getAuxLightManager(ChunkPos pos) {
-        return delegate.getAuxLightManager(pos);
-    }
-
-    @Override
-    public ModelData getModelData(BlockPos pos) {
-        return delegate.getModelData(pos);
     }
 
     @Override

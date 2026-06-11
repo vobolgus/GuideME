@@ -2,14 +2,13 @@ package guideme.internal.siteexport;
 
 import guideme.internal.GuideOnStartup;
 import guideme.internal.GuideRegistry;
+import guideme.internal.platform.GuideMEClientPlatform;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import net.neoforged.neoforge.client.event.ClientResourceLoadFinishedEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,11 +25,7 @@ public final class SiteExportOnStartup {
         var guidesToExport = getGuidesToExport();
 
         if (!guidesToExport.isEmpty()) {
-            NeoForge.EVENT_BUS.addListener((ClientResourceLoadFinishedEvent e) -> {
-                if (!e.isInitial()) {
-                    return;
-                }
-
+            GuideMEClientPlatform.get().whenResourcesLoaded(() -> {
                 GuideOnStartup.runDatapackReload();
 
                 for (var entry : guidesToExport.entrySet()) {

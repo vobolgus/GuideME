@@ -43,10 +43,10 @@ final class SpriteLayer {
     public void render(Matrix3x2fStack poseStack, int x, int y) {
         poseStack.pushMatrix();
         poseStack.translate(x, y);
-        var scissor = graphics.peekScissorStack();
+        var scissor = graphics.scissorStack.peek();
         var bounds = RenderState.getBounds(vertices, poseStack, scissor);
         var texture = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(atlasLocation);
-        graphics.submitGuiElementRenderState(new RenderState(
+        graphics.guiRenderState.addGuiElement(new RenderState(
                 RenderPipelines.GUI_TEXTURED,
                 TextureSetup.singleTexture(texture.getTextureView(), texture.getSampler()), new Matrix3x2f(poseStack),
                 vertices,

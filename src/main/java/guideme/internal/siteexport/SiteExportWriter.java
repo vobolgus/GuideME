@@ -58,7 +58,6 @@ import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.item.crafting.SmithingTransformRecipe;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.TagValueOutput;
-import net.neoforged.neoforge.fluids.FluidStack;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -171,11 +170,11 @@ public class SiteExportWriter {
         siteExport.items.put(itemInfo.id, itemInfo);
     }
 
-    public void addFluid(String id, FluidStack fluid, String iconPath) {
+    public void addFluid(String id, Fluid fluid, String iconPath) {
         var fluidInfo = new FluidInfoJson();
         fluidInfo.id = id;
         fluidInfo.icon = iconPath;
-        fluidInfo.displayName = fluid.getHoverName().getString();
+        fluidInfo.displayName = Platform.getFluidDisplayName(fluid).getString();
         siteExport.fluids.put(fluidInfo.id, fluidInfo);
     }
 

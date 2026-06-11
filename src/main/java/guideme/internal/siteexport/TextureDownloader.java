@@ -4,6 +4,7 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import guideme.internal.util.PipelineBuilders;
 import com.mojang.blaze3d.platform.DestFactor;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.SourceFactor;
@@ -22,7 +23,7 @@ public final class TextureDownloader {
      * The base pipeline is used by RenderTarget#blitAndBlendToTexture, but we require the alpha channel to be copied
      * as-is.
      */
-    public static final RenderPipeline COPY_BLIT = RenderPipelines.ENTITY_OUTLINE_BLIT.toBuilder()
+    public static final RenderPipeline COPY_BLIT = PipelineBuilders.toBuilder(RenderPipelines.ENTITY_OUTLINE_BLIT)
             .withLocation(GuideME.makeId("copy_blit"))
             .withColorTargetState(new ColorTargetState(new BlendFunction(SourceFactor.ONE, DestFactor.ZERO)))
             .build();

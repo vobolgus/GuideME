@@ -73,12 +73,9 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.ticks.BlackholeTickAccess;
 import net.minecraft.world.ticks.LevelTickAccess;
-import net.neoforged.neoforge.entity.PartEntity;
-import net.neoforged.neoforge.model.data.ModelData;
-import net.neoforged.neoforge.model.data.ModelDataManager;
 import org.jetbrains.annotations.Nullable;
 
-public class GuidebookLevel extends Level implements BlockAndTintGetter {
+public class GuidebookLevel extends GuidebookLevelPlatform implements BlockAndTintGetter {
 
     private static final ResourceKey<Level> LEVEL_ID = ResourceKey.create(Registries.DIMENSION,
             GuideME.makeId("guidebook"));
@@ -100,7 +97,6 @@ public class GuidebookLevel extends Level implements BlockAndTintGetter {
     private final ClientLevel.ClientLevelData clientLevelData;
     private final DeltaTracker.Timer tracker = new DeltaTracker.Timer(20.0F, 0L, def -> def);
     private float partialTick;
-    private final ModelDataManager modelDataManager = new ModelDataManager(this);
     private final EnvironmentAttributeSystem environmentAttributes = EnvironmentAttributeSystem.builder().build();
 
     // set time of day to noon (from TimeCommand noon)
@@ -228,16 +224,6 @@ public class GuidebookLevel extends Level implements BlockAndTintGetter {
         return partialTick;
     }
 
-    @Override
-    public ModelData getModelData(BlockPos pos) {
-        return modelDataManager.getAt(pos);
-    }
-
-    @Override
-    public @Nullable ModelDataManager getModelDataManager() {
-        return modelDataManager;
-    }
-
     public void onRenderFrame() {
         var ticksElapsed = tracker.advanceGameTime(Util.getMillis());
         if (ticksElapsed > 0) {
@@ -283,7 +269,7 @@ public class GuidebookLevel extends Level implements BlockAndTintGetter {
     public void addEntity(Entity entity) {
         this.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
         this.entityStorage.addEntity(entity);
-        entity.onAddedToLevel();
+        onEntityAddedToLevel(entity);
         prepareLighting(entity.getOnPos());
     }
 
@@ -428,11 +414,6 @@ public class GuidebookLevel extends Level implements BlockAndTintGetter {
             @Nullable ExplosionDamageCalculator damageCalculator, double x, double y, double z, float radius,
             boolean fire, ExplosionInteraction explosionInteraction, ParticleOptions p_364907_,
             ParticleOptions p_360946_, WeightedList<ExplosionParticleInfo> p_437262_, Holder<SoundEvent> p_363757_) {
-    }
-
-    @Override
-    public Collection<PartEntity<?>> dragonParts() {
-        return List.of();
     }
 
     @Override

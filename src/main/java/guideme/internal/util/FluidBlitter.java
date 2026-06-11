@@ -18,10 +18,8 @@
 
 package guideme.internal.util;
 
-import net.minecraft.client.Minecraft;
+import guideme.internal.platform.GuideMEClientPlatform;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
-import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
  * Creates a {@link Blitter} to draw fluids into the user interface.
@@ -31,19 +29,11 @@ public final class FluidBlitter {
     private FluidBlitter() {
     }
 
-    public static Blitter create(FluidStack stack) {
-        if (stack.isEmpty() && stack.getFluid() != Fluids.EMPTY) {
-            stack = new FluidStack(stack.typeHolder(), 1, stack.getComponentsPatch());
-        }
+    public static Blitter create(Fluid fluid) {
+        var icon = GuideMEClientPlatform.get().getFluidIcon(fluid);
 
-        var modelSet = Minecraft.getInstance().getModelManager().getFluidStateModelSet();
-        Fluid fluid = stack.getFluid();
-        // TODO: stack-aware fluid models, should they be added back
-        var model = modelSet.get(fluid.defaultFluidState());
-        int tintColor = model.fluidTintSource() != null ? model.fluidTintSource().colorAsStack(stack) : -1;
-
-        return Blitter.sprite(model.stillMaterial().sprite())
-                .colorRgb(tintColor)
+        return Blitter.sprite(icon.sprite())
+                .colorRgb(icon.tintColor())
                 // Most fluid texture have transparency, but we want an opaque slot
                 .blending(false);
     }

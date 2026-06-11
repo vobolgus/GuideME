@@ -20,7 +20,6 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
-import net.neoforged.neoforge.fluids.FluidStack;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector2f;
 
@@ -225,13 +224,7 @@ public interface RenderContext {
     }
 
     default void renderFluid(Fluid fluid, int x, int y, int width, int height) {
-        FluidBlitter.create(new FluidStack(fluid, 1))
-                .dest(x, y, width, height)
-                .blit(guiGraphics());
-    }
-
-    default void renderFluid(FluidStack stack, int x, int y, int width, int height) {
-        FluidBlitter.create(stack)
+        FluidBlitter.create(fluid)
                 .dest(x, y, width, height)
                 .blit(guiGraphics());
     }

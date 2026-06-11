@@ -1,0 +1,199 @@
+/*
+ * Fabric loader project for GuideME.
+ *
+ * Compiles the shared sources from the repository root (src/main/java) against
+ * Fabric Loader + Fabric API, plus the Fabric-specific platform layer in this
+ * directory (loader/fabric/src).
+ *
+ * The shared sources can be excluded with -Pguideme.fabric.shared=false to test the
+ * empty overlay in isolation (i.e. while rebasing the NeoForge decoupling).
+ */
+
+plugins {
+    id 'net.fabricmc.fabric-loom'
+    id 'maven-publish'
+    id 'com.gradleup.shadow'
+}
+
+apply plugin: ProjectDefaultsPlugin
+
+group = "org.appliedenergistics"
+version = rootProject.version
+
+base {
+    archivesName = "guideme-fabric"
+}
+
+loom {
+    mods {
+        guideme {
+            sourceSet sourceSets.main
+        }
+    }
+
+    accessWidenerPath = file('src/main/resources/guideme.accesswidener')
+
+    runs {
+        configureEach {
+            runDir 'run'
+        }
+    }
+}
+
+// Shared sources can be disabled to test the loader overlay in isolation.
+def includeSharedSources = providers.gradleProperty('guideme.fabric.shared').getOrElse('true') == 'true'
+if (includeSharedSources) {
+    sourceSets {
+        main {
+            java {
+                srcDir rootProject.file('src/main/java')
+                srcDir rootProject.file('src/main/flatbuffers/generated')
+            }
+            resources {
+                srcDir rootProject.file('src/main/resources')
+                srcDir rootProject.file('src/generated/resources')
+                // NeoForge metadata must not ship in the Fabric jar
+                exclude 'META-INF/accesstransformer.cfg'
+            }
+        }
+    }
+}
+
+configurations {
+    // Mirrors the :neoforge build: dependencies on the compile/runtime classpath that are
+    // NOT exposed to consumers (they are shaded into the jar or dev-only).
+    localImplementation
+    shaded {
+        transitive = false
+    }
+    compileClasspath.extendsFrom localImplementation
+    runtimeClasspath.extendsFrom localImplementation
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    // MC 26.1+ is unobfuscated: no mappings dependency, and mods are plain `implementation`
+    // (loom 1.17 dropped the modImplementation remapping configurations)
+
+    // NOTE: These must stay on `implementation`: loom only inspects the standard configurations
+    // for mod dependencies, and dropping them from there loses sponge-mixin on the compile
+    // classpath as well as fabric-api's transitive access wideners on the minecraft jar.
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+    if (includeSharedSources) {
+        // To be copied into the jar file (same set and relocations as the :neoforge jar)
+        shaded project(path: ':markdown', configuration: "runtimeElements")
+        shaded "io.methvin:directory-watcher:${directory_watcher_version}"
+        shaded "org.yaml:snakeyaml:${snakeyaml_version}"
+        shaded "com.google.flatbuffers:flatbuffers-java:${flatbuffers_version}"
+
+        localImplementation(project(':markdown')) {
+            transitive = false
+        }
+        // Do not inherit any transitive dependencies here since we rely on those transitive dependencies
+        // being present in Minecrafts own dependencies already.
+        localImplementation("io.methvin:directory-watcher:${directory_watcher_version}") {
+            transitive = false
+        }
+        localImplementation("org.yaml:snakeyaml:${snakeyaml_version}") {
+            transitive = false
+        }
+        localImplementation("com.google.flatbuffers:flatbuffers-java:${flatbuffers_version}") {
+            transitive = false
+        }
+        shaded(localImplementation("org.apache.lucene:lucene-core:${lucene_version}"))
+        shaded(localImplementation("org.apache.lucene:lucene-analysis-common:${lucene_version}"))
+        shaded(localImplementation("org.apache.lucene:lucene-queryparser:${lucene_version}"))
+        shaded(localImplementation("org.apache.lucene:lucene-facet:${lucene_version}"))
+        shaded(localImplementation("org.apache.lucene:lucene-queries:${lucene_version}"))
+        shaded(localImplementation("org.apache.lucene:lucene-highlighter:${lucene_version}"))
+        shaded(localImplementation("org.apache.lucene:lucene-memory:${lucene_version}"))
+
+        // Used for the guide export
+        localImplementation("org.bytedeco:ffmpeg-platform:${ffmpeg_version}")
+    }
+}
+
+processResources {
+    def expandProps = [
+            'version'              : project.version.toString(),
+            'minecraft_version'    : project.minecraft_version,
+            'fabric_loader_version': project.fabric_loader_version
+    ]
+    inputs.properties expandProps
+
+    filesMatching('fabric.mod.json') {
+        expand expandProps
+    }
+}
+
+//////////////////
+// Shading (mirrors loader/neoforge/build.gradle, minus ProGuard: the Fabric jar is published unshrunk)
+jar {
+    finalizedBy shadowJar
+    archiveClassifier = "slim"
+    manifest {
+        attributes.put("Implementation-Version", project.version)
+    }
+}
+
+shadow {
+    addShadowVariantIntoJavaComponent = false
+}
+
+shadowJar {
+    from(rootProject.file('web/dist')) {
+        into 'guideme/internal/web/default-assets'
+    }
+    exclude '.cache/**'
+
+    dependencies {
+        exclude 'META-INF/maven/**'
+    }
+    mergeServiceFiles()
+
+    relocate "io.methvin", "guideme.internal.shaded.methvin"
+    relocate "org.yaml.snakeyaml", "guideme.internal.shaded.snakeyaml"
+    relocate "com.google.flatbuffers", "guideme.internal.shaded.flatbuffers"
+    relocate "org.apache.lucene", "guideme.internal.shaded.lucene"
+    relocate "org.tartarus.snowball", "guideme.internal.shaded.snowball"
+
+    configurations = [project.configurations.shaded]
+    archiveClassifier = ''
+}
+assemble.dependsOn shadowJar
+
+// Publish only the shaded jar (replaces the slim "jar" in the outgoing variants)
+configurations {
+    apiElements {
+        outgoing {
+            artifacts.clear()
+            artifact shadowJar
+        }
+    }
+    runtimeElements {
+        outgoing {
+            artifacts.clear()
+            artifact shadowJar
+        }
+    }
+}
+
+//////////////////
+// Maven publish
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifactId = "guideme-fabric"
+            version = project.version
+            from(components.java)
+        }
+    }
+    repositories {
+        maven {
+            name = "Local"
+            url = file("build/repo").toURI()
+        }
+    }
+}

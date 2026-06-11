@@ -33,7 +33,7 @@ public class OffScreenRenderer implements AutoCloseable {
 
     public OffScreenRenderer(int width, int height) {
         nativeImage = new NativeImage(width, height, false);
-        fb = new TextureTarget("GuideME OSR", width, height, true /* with depth */, false /* with stencil */);
+        fb = new TextureTarget("GuideME OSR", width, height, true /* with depth */);
 
         device = RenderSystem.getDevice();
         commandEncoder = device.createCommandEncoder();

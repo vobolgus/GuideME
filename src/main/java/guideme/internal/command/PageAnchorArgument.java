@@ -53,7 +53,7 @@ public class PageAnchorArgument implements ArgumentType<PageAnchor> {
         return !reader.canRead() || reader.peek() == ' ';
     }
 
-    public static PageAnchor getPageAnchor(CommandContext<CommandSourceStack> context, String name) {
+    public static PageAnchor getPageAnchor(CommandContext<?> context, String name) {
         return context.getArgument(name, PageAnchor.class);
     }
 

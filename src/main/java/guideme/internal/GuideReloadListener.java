@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class GuideReloadListener extends SimplePreparableReloadListener<GuideReloadListener.Result> {
+public class GuideReloadListener extends SimplePreparableReloadListener<GuideReloadListener.Result> {
     public static final Identifier ID = GuideME.makeId("guides");
 
     private static final Logger LOG = LoggerFactory.getLogger(GuideReloadListener.class);

@@ -79,7 +79,7 @@ public class ImportStructureElementCompiler implements SceneElementTagCompiler {
         var settings = new StructurePlaceSettings();
         settings.setIgnoreEntities(true); // Entities need a server level in structures
 
-        var fakeServerLevel = new FakeForwardingServerLevel(scene.getLevel());
+        var fakeServerLevel = new PlatformFakeServerLevel(scene.getLevel());
         if (!template.placeInWorld(fakeServerLevel, pos, pos, settings, random, 0)) {
             errorSink.appendError(compiler, "Failed to place structure", el);
         }

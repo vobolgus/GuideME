@@ -1,3 +1,4 @@
+import java.io.File;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginExtension;
@@ -8,8 +9,14 @@ public class FlatBuffersPlugin implements Plugin<Project> {
     public void apply(Project project) {
         project.getPlugins().apply("java");
 
+        // The flatbuffers schema and its generated code live in the repository root,
+        // shared between the loader-specific projects (this plugin is applied to :neoforge).
+        var rootLayout = project.getRootProject().getLayout().getProjectDirectory();
+        var rootDir = project.getRootDir();
+
         var java = project.getExtensions().getByType(JavaPluginExtension.class);
-        java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getJava().srcDir("src/main/flatbuffers/generated");
+        java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getJava()
+                .srcDir(new File(rootDir, "src/main/flatbuffers/generated"));
 
         var tasks = project.getTasks();
         var downloadFlatc = tasks.register("downloadFlatbufferCompiler", DownloadFlatBufferCompilerTask.class, task -> {
@@ -23,8 +30,8 @@ public class FlatBuffersPlugin implements Plugin<Project> {
         tasks.register("updateFlatbufferSources", GenerateFlatBufferCode.class, task -> {
             task.setGroup("build");
             task.getCompiler().set(downloadFlatc.flatMap(DownloadFlatBufferCompilerTask::getExecutableFile));
-            task.getOutputDirectory().set(project.getLayout().getProjectDirectory().dir("src/main/flatbuffers/generated"));
-            task.getSchemaFiles().from("src/main/flatbuffers/scene.fbs");
+            task.getOutputDirectory().set(rootLayout.dir("src/main/flatbuffers/generated"));
+            task.getSchemaFiles().from(new File(rootDir, "src/main/flatbuffers/scene.fbs"));
             task.getOptions().addAll(
                     "--gen-mutable",
                     "--java-package-prefix", "guideme.flatbuffers",
@@ -42,8 +49,8 @@ public class FlatBuffersPlugin implements Plugin<Project> {
         tasks.register("updateFlatbufferTypescriptSources", GenerateFlatBufferCode.class, task -> {
             task.setGroup("build");
             task.getCompiler().set(downloadFlatc.flatMap(DownloadFlatBufferCompilerTask::getExecutableFile));
-            task.getOutputDirectory().set(project.getLayout().getProjectDirectory().dir("web/scene-ts"));
-            task.getSchemaFiles().from("src/main/flatbuffers/scene.fbs");
+            task.getOutputDirectory().set(rootLayout.dir("web/scene-ts"));
+            task.getSchemaFiles().from(new File(rootDir, "src/main/flatbuffers/scene.fbs"));
             task.getOptions().addAll(
                     "--ts-flat-files",
                     "--ts"

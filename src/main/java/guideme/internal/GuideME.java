@@ -1,38 +1,27 @@
 package guideme.internal;
 
-import guideme.internal.command.GuideCommand;
-import guideme.internal.command.GuideIdArgument;
-import guideme.internal.command.PageAnchorArgument;
 import guideme.internal.item.GuideItem;
-import guideme.internal.network.OpenGuideRequest;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
-import net.minecraft.commands.synchronization.ArgumentTypeInfo;
-import net.minecraft.commands.synchronization.ArgumentTypeInfos;
-import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.core.component.DataComponentType;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.OnDatapackSyncEvent;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
-@Mod(value = GuideME.MOD_ID)
-public class GuideME {
+/**
+ * Loader-neutral holder for the common (client+server) parts of GuideME. The actual mod entrypoints live in the
+ * per-loader projects and are responsible for registering the content defined here.
+ */
+public final class GuideME {
 
     static GuideMEProxy PROXY = new GuideMEServerProxy();
 
     public static final String MOD_ID = "guideme";
 
-    private static final DeferredRegister.Items DR_ITEMS = DeferredRegister.createItems(MOD_ID);
-    private static final DeferredRegister<ArgumentTypeInfo<?, ?>> DR_ARGUMENT_TYPE_INFOS = DeferredRegister
-            .create(Registries.COMMAND_ARGUMENT_TYPE, MOD_ID);
+    private static GuideItem guideItem;
 
-    public static final Supplier<GuideItem> GUIDE_ITEM = DR_ITEMS.registerItem("guide", GuideItem::new);
+    public static final Supplier<GuideItem> GUIDE_ITEM = () -> Objects.requireNonNull(GuideME.guideItem,
+            "GuideME guide item is not registered yet");
 
     /**
      * Attaches the guide ID to a generic guide item.
@@ -43,52 +32,27 @@ public class GuideME {
             .persistent(Identifier.CODEC)
             .build();
 
-    public GuideME(IEventBus modBus) {
-        DR_ARGUMENT_TYPE_INFOS.register("guide_id", () -> ArgumentTypeInfos.registerByClass(GuideIdArgument.class,
-                SingletonArgumentInfo.contextFree(GuideIdArgument::argument)));
-        DR_ARGUMENT_TYPE_INFOS.register("page_anchor", () -> ArgumentTypeInfos.registerByClass(PageAnchorArgument.class,
-                SingletonArgumentInfo.contextFree(PageAnchorArgument::argument)));
+    /**
+     * The recipe types for which GuideME has default handlers. Loaders synchronize the recipes of these types from the
+     * server to the client.
+     */
+    public static final List<RecipeType<?>> SYNCED_RECIPE_TYPES = List.of(
+            RecipeType.CRAFTING,
+            RecipeType.BLASTING,
+            RecipeType.SMELTING,
+            RecipeType.SMITHING);
 
-        var drDataComponents = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MOD_ID);
-        drDataComponents.register("guide_id", () -> GUIDE_ID_COMPONENT);
-
-        DR_ARGUMENT_TYPE_INFOS.register(modBus);
-        DR_ITEMS.register(modBus);
-        drDataComponents.register(modBus);
-
-        modBus.addListener(this::registerNetworking);
-
-        NeoForge.EVENT_BUS.addListener(this::registerCommands);
-
-        NeoForge.EVENT_BUS.addListener(this::registerRecipeSync);
+    private GuideME() {
     }
 
-    private void registerCommands(RegisterCommandsEvent event) {
-        GuideCommand.register(event.getDispatcher());
-    }
-
-    private void registerNetworking(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("1.0");
-        registrar.playToClient(OpenGuideRequest.TYPE, OpenGuideRequest.STREAM_CODEC, (payload, context) -> {
-            var anchor = payload.pageAnchor().orElse(null);
-            if (anchor != null) {
-                GuideMEProxy.instance().openGuide(context.player(), payload.guideId(), anchor);
-            } else {
-                GuideMEProxy.instance().openGuide(context.player(), payload.guideId());
-            }
-        });
+    /**
+     * Called by the loader entrypoint after the guide item has been created and registered.
+     */
+    public static void setGuideItem(GuideItem item) {
+        GuideME.guideItem = item;
     }
 
     public static Identifier makeId(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
-    }
-
-    // We send the recipe types for which we have default handlers
-    private void registerRecipeSync(OnDatapackSyncEvent event) {
-        event.sendRecipes(
-                RecipeType.CRAFTING,
-                RecipeType.BLASTING,
-                RecipeType.SMELTING,
-                RecipeType.SMITHING);
     }
 }
