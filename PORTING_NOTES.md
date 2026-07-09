@@ -300,7 +300,13 @@ Shadow relocates the mixin class's own references, so the prod-jar mixin correct
 `guideme.internal.shaded.lucene...`; in dev the optional config simply doesn't apply.
 
 ### Known gaps / future work (Fabric)
-- No runClient/runServer smoke test yet (no display on this machine).
+- `:fabric:runServer` — **dedicated-server boot verified clean 2026-07-09** (`Done (1.565s)`, then
+  graceful stop on stdin EOF). The `GuideMEFabric` main entrypoint's server-side registration path
+  (guide item + data component + `guide_id`/`page_anchor` argument types + clientbound payloads +
+  `/guide` command + `RecipeSync.init`) initializes with NO client-class leak and no mixin apply
+  failures — the #1 dual-loader DoD gate now passes. `runClient` still unrun (needs a display on this
+  machine); the only benign log noise is the first-run `server.properties` NoSuchFileException (defaults
+  get generated).
 - No config screen (NeoForge keeps ConfigurationScreen; add ModMenu integration later).
 - `runOnNextClientTick`/`whenResourcesLoaded` leave inert listeners registered (fabric events
   can't unregister); dev-tooling only.
