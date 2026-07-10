@@ -97,8 +97,19 @@ when the gate flips.
 - **Mod metadata**: `src/main/neoforge.mods.toml` is injected via the `generateModMetadata`
   task in `:neoforge` only; `fabric.mod.json` lives in the fabric overlay and is expanded by
   `processResources` (`version`, `minecraft_version`, `fabric_loader_version`).
-- **`testmod`/`test`/unitTest** are ModDevGradle features and live in `:neoforge` only.
-  Fabric gametests need their own wiring later (fabric-loader JUnit / fabric gametest API).
+- **`testmod`/unitTest** are ModDevGradle features and live in `:neoforge` only.
+  Fabric gametests need their own wiring later (fabric gametest API).
+- **Shared JUnit suite runs on BOTH loaders** (2026-07-10): `:fabric` wires root `src/test/java`
+  into its `test` source set (excluding the NeoForge-only `guideme/guidebook/TestMod.java` @Mod
+  entrypoint) and uses `net.fabricmc:fabric-loader-junit` as the loom twin of MDG's unitTest.
+  Two fabric-only traps solved in `loader/fabric/src/test`: (a) vanilla registries are NOT
+  bootstrapped by fabric-loader-junit → `BootstrapMinecraftExtension` (auto-registered via
+  META-INF/services + `junit-platform.properties` autodetection) calls
+  `SharedConstants.tryDetectVersion()` + `Bootstrap.bootStrap()`; (b) the extension instance is
+  created on the app classloader while test classes load in Knot → the bootstrap is invoked
+  REFLECTIVELY through `context.getRequiredTestClass().getClassLoader()`, otherwise you
+  bootstrap the wrong classloader's registry copies and still crash "Not bootstrapped".
+  Both loaders execute the identical 379-test suite (`:fabric:test` / `:neoforge:test`).
 - **ProGuard runs on the Gradle JVM** (`System.getProperty('java.home')` → the JDK 21 used to
   launch Gradle), while code is compiled with the toolchain JDK 25. Watch for class-version
   complaints from proguard if shared code starts using JDK 22+ APIs.
@@ -312,6 +323,7 @@ Shadow relocates the mixin class's own references, so the prod-jar mixin correct
   can't unregister); dev-tooling only.
 - Tooltip hotkey progress bar may appear in creative search tree text in rare cases (no
   player context on Fabric's ItemTooltipCallback).
-- Fabric gametests not wired (`test`/`testmod` remain :neoforge-only).
+- Fabric gametests not wired (`testmod` remains :neoforge-only). The shared JUnit `test` suite
+  DOES run on :fabric since 2026-07-10 (fabric-loader-junit; see the build-layout notes above).
 - Datagen (language/model providers) is NeoForge-only; regenerate via :neoforge runData.
 - ProGuard not applied to the fabric jar (published unshrunk).

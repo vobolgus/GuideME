@@ -8,3 +8,4 @@ out
 *-autosave.kra
 /web/node_modules
 /loader/*/run
+loader/fabric/logs/

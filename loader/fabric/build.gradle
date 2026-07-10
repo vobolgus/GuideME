@@ -56,6 +56,20 @@ if (includeSharedSources) {
                 exclude 'META-INF/accesstransformer.cfg'
             }
         }
+        // Shared JUnit suite (same sources :neoforge runs via ModDevGradle's unitTest).
+        // fabric-loader-junit boots Fabric Loader inside JUnit, so the game classes and the
+        // access widener are live on the test classpath.
+        test {
+            java {
+                srcDir rootProject.file('src/test/java')
+                // NeoForge-only: @Mod entrypoint for the :neoforge unitTest runtime
+                // (guidemetest); imports net.neoforged.* and the loader/neoforge overlay
+                // class GuideMENeoForgeClient. Not a test class (no @Test methods), so
+                // excluding it does not reduce the executed-test count.
+                exclude 'guideme/guidebook/TestMod.java'
+            }
+            // No shared src/test/resources exists; nothing to add.
+        }
     }
 }
 
@@ -68,6 +82,10 @@ configurations {
     }
     compileClasspath.extendsFrom localImplementation
     runtimeClasspath.extendsFrom localImplementation
+    // Mirrors :neoforge: the shaded-but-local deps (markdown, snakeyaml, lucene, ...) must be
+    // visible to the unit tests too.
+    testCompileClasspath.extendsFrom localImplementation
+    testRuntimeClasspath.extendsFrom localImplementation
 }
 
 dependencies {
@@ -112,7 +130,31 @@ dependencies {
 
         // Used for the guide export
         localImplementation("org.bytedeco:ffmpeg-platform:${ffmpeg_version}")
+
+        // unit test dependencies — same suite as :neoforge (loader/neoforge/build.gradle),
+        // minus net.neoforged:testframework (NeoForge-only; nothing in the shared tests uses it
+        // after excluding TestMod.java above).
+        testImplementation(platform("org.junit:junit-bom:${junit_version}"))
+        testImplementation(platform("org.assertj:assertj-bom:${assertj_version}"))
+        testImplementation("org.junit.jupiter:junit-jupiter-api")
+        testImplementation("org.junit.jupiter:junit-jupiter-params")
+        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+        testImplementation("org.junit.platform:junit-platform-launcher")
+        testImplementation("org.assertj:assertj-core")
+        testImplementation("org.mockito:mockito-junit-jupiter:5.21.0")
+        // Boots Fabric Loader (Knot) inside the JUnit JVM: applies the access widener and
+        // mixins, and loom auto-configures the Test task's fabric launch properties when it
+        // sees this dependency. This is the loom twin of ModDevGradle's `unitTest` feature.
+        testImplementation("net.fabricmc:fabric-loader-junit:${fabric_loader_version}")
     }
+}
+
+test {
+    useJUnitPlatform()
+
+    // Same guide sources the :neoforge test task points at (PageCompilerTest).
+    systemProperty 'guideme.testmod.guide.sources',
+            rootProject.file('src/testmod/resources/assets/testmod/guides/testmod/guide').absolutePath
 }
 
 processResources {
