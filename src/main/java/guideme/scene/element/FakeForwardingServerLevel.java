@@ -30,7 +30,6 @@ import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipBlockStateContext;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.LightLayer;

@@ -13,9 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Minimal TOML-subset storage for the GuideME client config on Fabric. Writes {@code config/guideme.toml} with the
- * same sections, keys and comments as the NeoForge version, and reads back any {@code key = true/false} pairs (key
- * names are unique across sections).
+ * Minimal TOML-subset storage for the GuideME client config on Fabric. Writes {@code config/guideme.toml} with the same
+ * sections, keys and comments as the NeoForge version, and reads back any {@code key = true/false} pairs (key names are
+ * unique across sections).
  */
 public class FabricConfigBackend implements ConfigBackend {
     private static final Logger LOG = LoggerFactory.getLogger(FabricConfigBackend.class);

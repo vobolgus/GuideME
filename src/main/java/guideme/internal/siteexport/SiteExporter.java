@@ -10,9 +10,9 @@ import guideme.indices.CategoryIndex;
 import guideme.indices.ItemIndex;
 import guideme.internal.GuideME;
 import guideme.internal.GuideOnStartup;
-import guideme.internal.siteexport.mdastpostprocess.PageExportPostProcessor;
 import guideme.internal.platform.GuideMEClientPlatform;
 import guideme.internal.platform.GuideMEPlatform;
+import guideme.internal.siteexport.mdastpostprocess.PageExportPostProcessor;
 import guideme.internal.util.Platform;
 import guideme.navigation.NavigationNode;
 import guideme.siteexport.ExportableResourceProvider;
@@ -498,7 +498,8 @@ public class SiteExporter implements ResourceExporter {
             MoreFiles.deleteRecursively(iconsFolder, RecursiveDeleteOption.ALLOW_INSECURE);
         }
 
-        // Set the GUI scale accordingly to get GuiGraphicsExtractor to render out items full-screen, filling the scaled up
+        // Set the GUI scale accordingly to get GuiGraphicsExtractor to render out items full-screen, filling the scaled
+        // up
         // buffer
         var window = Minecraft.getInstance().getWindow();
         var previousWindowWidth = window.getWidth();
@@ -509,7 +510,8 @@ public class SiteExporter implements ResourceExporter {
         window.setGuiScale(ICON_SCALE);
 
         try (var renderer = new OffScreenRenderer(ICON_DIMENSION, ICON_DIMENSION)) {
-            var guiGraphics = new GuiGraphicsExtractor(client, client.gameRenderer.getGameRenderState().guiRenderState, 0, 0);
+            var guiGraphics = new GuiGraphicsExtractor(client, client.gameRenderer.getGameRenderState().guiRenderState,
+                    0, 0);
 
             LOG.info("Exporting items...");
             for (var item : items) {
@@ -568,7 +570,8 @@ public class SiteExporter implements ResourceExporter {
             MoreFiles.deleteRecursively(fluidsFolder, RecursiveDeleteOption.ALLOW_INSECURE);
         }
 
-        // Set the GUI scale accordingly to get GuiGraphicsExtractor to render out items full-screen, filling the scaled up
+        // Set the GUI scale accordingly to get GuiGraphicsExtractor to render out items full-screen, filling the scaled
+        // up
         // buffer
         var window = Minecraft.getInstance().getWindow();
         var previousWindowWidth = window.getWidth();
@@ -579,7 +582,8 @@ public class SiteExporter implements ResourceExporter {
         window.setGuiScale(ICON_SCALE);
 
         try (var renderer = new OffScreenRenderer(ICON_DIMENSION, ICON_DIMENSION)) {
-            var guiGraphics = new GuiGraphicsExtractor(client, client.gameRenderer.getGameRenderState().guiRenderState, 0, 0);
+            var guiGraphics = new GuiGraphicsExtractor(client, client.gameRenderer.getGameRenderState().guiRenderState,
+                    0, 0);
 
             LOG.info("Exporting fluids...");
             for (var fluid : fluids) {

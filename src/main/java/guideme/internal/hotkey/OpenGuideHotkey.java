@@ -7,8 +7,8 @@ import guideme.PageAnchor;
 import guideme.indices.ItemIndex;
 import guideme.internal.GuideMEClient;
 import guideme.internal.GuideRegistry;
-import guideme.internal.platform.GuideMEClientPlatform;
 import guideme.internal.GuidebookText;
+import guideme.internal.platform.GuideMEClientPlatform;
 import guideme.internal.screen.GuideScreen;
 import guideme.ui.GuideUiHost;
 import java.util.ArrayList;
@@ -60,8 +60,8 @@ public final class OpenGuideHotkey {
     }
 
     /**
-     * Called by the loader for item tooltips shown to the local player. Loaders should not forward tooltip events
-     * fired for other purposes (i.e. while building the search tree for the creative menu) where they can detect this.
+     * Called by the loader for item tooltips shown to the local player. Loaders should not forward tooltip events fired
+     * for other purposes (i.e. while building the search tree for the creative menu) where they can detect this.
      */
     public static void onItemTooltip(ItemStack itemStack, TooltipFlag tooltipFlag, List<Component> lines) {
         handleTooltip(itemStack, tooltipFlag, lines);

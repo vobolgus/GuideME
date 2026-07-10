@@ -18,6 +18,7 @@ import guideme.document.flow.LytFlowAnchor;
 import guideme.document.flow.LytFlowContent;
 import guideme.document.flow.LytFlowSpan;
 import guideme.internal.GuidebookText;
+import guideme.internal.platform.GuideMEPlatform;
 import guideme.layout.LayoutContext;
 import guideme.layout.MinecraftFontMetrics;
 import guideme.render.GuiAssets;
@@ -33,7 +34,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
-import guideme.internal.platform.GuideMEPlatform;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
@@ -199,7 +199,8 @@ public class GuideScreen extends DocumentScreen implements GuideUiHost {
     }
 
     @Override
-    public void scaledExtractRenderState(GuiGraphicsExtractor guiGraphics, RenderContext context, int mouseX, int mouseY,
+    public void scaledExtractRenderState(GuiGraphicsExtractor guiGraphics, RenderContext context, int mouseX,
+            int mouseY,
             float partialTick) {
         context.fillIcon(screenRect, GuiAssets.GUIDE_BACKGROUND, SymbolicColor.GUIDE_SCREEN_BACKGROUND);
 

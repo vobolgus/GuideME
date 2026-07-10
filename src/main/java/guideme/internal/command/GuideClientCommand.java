@@ -15,8 +15,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 /**
- * The client-side {@code /guidemec} command. Since the command source type for client commands differs between
- * loaders, registration is generic over the source type and loaders supply a {@link Feedback} adapter.
+ * The client-side {@code /guidemec} command. Since the command source type for client commands differs between loaders,
+ * registration is generic over the source type and loaders supply a {@link Feedback} adapter.
  */
 public final class GuideClientCommand {
     private GuideClientCommand() {
@@ -35,8 +35,8 @@ public final class GuideClientCommand {
         var rootCommand = LiteralArgumentBuilder.<S>literal("guidemec");
 
         rootCommand.then(
-                RequiredArgumentBuilder
-                        .<S, net.minecraft.resources.Identifier>argument("guide", GuideIdArgument.argument())
+                RequiredArgumentBuilder.<S, net.minecraft.resources.Identifier>argument("guide",
+                        GuideIdArgument.argument())
                         .then(LiteralArgumentBuilder.<S>literal("export")
                                 .executes(context -> {
                                     var guideId = GuideIdArgument.getGuide(context, "guide");
@@ -86,8 +86,8 @@ public final class GuideClientCommand {
                                     return 0;
                                 })
                                 .then(
-                                        RequiredArgumentBuilder
-                                                .<S, guideme.PageAnchor>argument("page", PageAnchorArgument.argument())
+                                        RequiredArgumentBuilder.<S, guideme.PageAnchor>argument("page",
+                                                PageAnchorArgument.argument())
                                                 .executes(context -> {
                                                     var guideId = GuideIdArgument.getGuide(context, "guide");
                                                     var guide = Guides.getById(guideId);

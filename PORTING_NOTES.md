@@ -130,24 +130,42 @@ export JAVA_HOME="$HOME/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0
   `fabric.mod.json` (id `guideme`, env `*`, empty entrypoints) and the
   `guideme.accesswidener` stub. `compileJava` is NO-SOURCE (empty overlay,
   `guideme.fabric.shared=false`); loom's `validateAccessWidener` passes on the stub.
-- `./gradlew :neoforge:build` — **FAILS only at `:neoforge:javaImmaculateCheck`**
-  (code-formatting check, dev.lukebemish.immaculate 0.1.15 / eclipse formatter 3.37.0).
-  This failure is **pre-existing**, not caused by the restructure: a pristine worktree of
-  the base commit (`14de80c`, tag `v26.1.10-alpha`, original single-project layout,
-  original Gradle 9.2.1 wrapper) fails `javaImmaculateCheck` identically — formatting
-  drift in unmodified upstream sources (line-wrapping differences in e.g.
-  `GuideScreen.java`, `SceneExporter.java`, `DocumentScreen.java`; >5 files, immaculate
-  truncates the report). Likely the upstream alpha tag was cut without running `check`,
-  or the formatter wraps differently on this JDK/platform.
-- `./gradlew :neoforge:build -x :neoforge:javaImmaculateCheck` — **GREEN**, i.e.
-  everything else passes: `compileJava` (shared sources + flatbuffers), `test`
-  (JUnit via ModDevGradle unitTest, NeoForge runtime), `jar` → `shadowJar` →
-  `proguardJar` → `postProcessJar`, `javadoc`, `sourcesJar`, `assemble`, `check`.
+- `./gradlew :neoforge:build` — **GREEN** (since the 2026-07-10 formatting fix below):
+  `compileJava` (shared sources + flatbuffers), `test` (JUnit via ModDevGradle unitTest,
+  NeoForge runtime), `jar` → `shadowJar` → `proguardJar` → `postProcessJar`, `javadoc`,
+  `sourcesJar`, `assemble`, `check`. ⚠ `proguardJar` requires the **Gradle JVM** to be a
+  JDK whose `jmods` proguard 7.8.2 can read — with a Temurin **26** launcher it fails
+  "incomplete class hierarchy" (class-file major 70); use the JDK **21** launcher above.
 - `./gradlew :neoforge:compileJava :neoforge:test` — **GREEN** (the fallback gate).
 
-Do NOT "fix" the formatting failure by running `javaImmaculateFormat` on this branch —
-it would touch dozens of shared source files and bloat the port diff. Leave it to
-upstream (or a dedicated formatting-only commit).
+### Formatting drift — FIXED 2026-07-10 (`javaImmaculateApply`, formatting-only)
+
+`javaImmaculateCheck` used to fail on ~26 files (blocking plain `:fabric:build` /
+`:neoforge:build`, which run `check`). Root cause was **(a) sources genuinely out of
+format**, NOT formatter/toolchain nondeterminism:
+
+- The failure reproduces on a pristine worktree of the upstream base commit `14de80c`
+  (tag `v26.1.10-alpha`) with the same files — most of the drift is **inherited from
+  upstream** (over-length lines in `StructureCommands`, `SiteExporter`,
+  `GuideItemDispatch*`, javadoc wraps, etc.).
+- Upstream CI never catches it: upstream's `build.yml`/`release.yml` run
+  `./gradlew build publish -x check` — the formatter check is explicitly excluded.
+- The Temurin-26 suspicion is disproven: the check fails/passes **identically** under
+  JDK 21 and JDK 26 Gradle daemons, and `javaImmaculateApply` is idempotent (a second
+  apply changes nothing). Formatter versions are pinned (immaculate 0.1.15, eclipse JDT
+  3.37.0, `docs/codeformat.xml`) — output is deterministic.
+- The rest of the drift was added by the fork's own port commits (unused imports in
+  `Platform.java`, `GuidebookLevel.java`, import order in `GuideScreen.java`,
+  `GuideSourceWatcher.java` and the fabric/neoforge overlays).
+
+Fix: `./gradlew :fabric:javaImmaculateApply :neoforge:javaImmaculateApply
+:markdown:javaImmaculateApply` — 26 files, +57/−48 lines, verified formatting-only
+(import reorder / unused-import removal, 120-col rewraps, one empty-body brace style).
+After the fix: all three `javaImmaculateCheck` tasks green, `:fabric:test` 379/379,
+`:fabric:build` and `:neoforge:build` fully green with no `-x` exclusions.
+Rebase caveat: upstream is still unformatted, so rebasing onto a new upstream alpha may
+reintroduce drift in upstream-touched files — rerun the three apply tasks after every
+rebase (formatting-only diffs, safe to fold into the rebase commit).
 
 ## Code port (Phase 2) — gate results
 

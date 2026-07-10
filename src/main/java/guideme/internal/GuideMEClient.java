@@ -20,15 +20,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Loader-neutral client-side singleton. Constructed by the loader-specific client entrypoint, which is also
- * responsible for wiring the following registrations and events to the loader (see the per-loader projects):
+ * Loader-neutral client-side singleton. Constructed by the loader-specific client entrypoint, which is also responsible
+ * for wiring the following registrations and events to the loader (see the per-loader projects):
  * <ul>
  * <li>Registering {@link #GUIDE_CLICK_EVENT} as a sound event under {@link #GUIDE_CLICK_ID}.</li>
  * <li>Registering the {@link #KEYBIND_CATEGORY} keybind category and the open-guide hotkey (see
  * {@link guideme.internal.hotkey.OpenGuideHotkey#init}).</li>
  * <li>Registering the item model dispatch codec {@link guideme.internal.item.GuideItemDispatchUnbaked}.</li>
- * <li>Registering the custom render pipelines ({@code Blitter.GUI_TEXTURED_OPAQUE}, {@code TextureDownloader.COPY_BLIT},
- * {@code InWorldAnnotationRenderer.OCCLUDED_PIPELINE}) where the loader requires pre-registration.</li>
+ * <li>Registering the custom render pipelines ({@code Blitter.GUI_TEXTURED_OPAQUE},
+ * {@code TextureDownloader.COPY_BLIT}, {@code InWorldAnnotationRenderer.OCCLUDED_PIPELINE}) where the loader requires
+ * pre-registration.</li>
  * <li>Registering the picture-in-picture renderer {@code ScenePictureInPictureRenderer}.</li>
  * <li>Registering {@link GuideReloadListener} as a client resource reload listener, and calling
  * {@code GuiAssets.resetSprites()} when the GUI sprite atlas is rebuilt.</li>

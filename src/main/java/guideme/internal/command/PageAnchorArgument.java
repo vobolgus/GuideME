@@ -12,7 +12,6 @@ import guideme.internal.GuideMEProxy;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
