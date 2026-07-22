@@ -14,7 +14,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.renderer.v1.Renderer;
-import net.fabricmc.fabric.api.client.renderer.v1.sprite.SpriteFinderGetter;
+import net.fabricmc.fabric.api.client.renderer.v1.sprite.FabricTextureAtlas;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
@@ -107,7 +107,7 @@ public class FabricClientPlatform implements GuideMEClientPlatform {
         var emitter = renderer.quadEmitter(quad -> {
             var atlas = (TextureAtlas) Minecraft.getInstance().getTextureManager().getTexture(
                     quad.atlas().getTextureLocation());
-            var sprite = ((SpriteFinderGetter) atlas).spriteFinder(quad.atlas()).find(quad);
+            var sprite = ((FabricTextureAtlas) atlas).spriteFinder().find(quad);
             var instance = new QuadInstance();
             for (int vertex = 0; vertex < 4; vertex++) {
                 instance.setColor(vertex, quad.color(vertex));

@@ -29,10 +29,10 @@ public record SyncRecipesPayload(boolean clear,
     /**
      * ⚠ Recipes are serialized via the DFU {@link Recipe#CODEC} (string ids), NOT {@link RecipeHolder#STREAM_CODEC}.
      * The vanilla stream codec dispatches the recipe serializer by RAW registry id, but since 1.21.2 vanilla no longer
-     * sends recipe serializers over the network, so Fabric does not raw-id-sync {@code minecraft:recipe_serializer}
-     * (or {@code data_component_type}) between client and server. With client-only mods installed the raw ids diverge
-     * and the client dispatches to the WRONG serializer, desyncing the whole connection. The DFU codec is
-     * identifier-based end to end (serializer, items, components) and immune to raw-id drift.
+     * sends recipe serializers over the network, so Fabric does not raw-id-sync {@code minecraft:recipe_serializer} (or
+     * {@code data_component_type}) between client and server. With client-only mods installed the raw ids diverge and
+     * the client dispatches to the WRONG serializer, desyncing the whole connection. The DFU codec is identifier-based
+     * end to end (serializer, items, components) and immune to raw-id drift.
      */
     private static final StreamCodec<RegistryFriendlyByteBuf, Recipe<?>> RECIPE_BY_NAME_CODEC = ByteBufCodecs
             .fromCodecWithRegistries(Recipe.CODEC);
