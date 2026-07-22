@@ -10,7 +10,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.CommonListenerCookie;
 import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockQuadOutput;
 import net.minecraft.client.renderer.block.FluidRenderer;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.telemetry.WorldSessionTelemetryManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -67,6 +69,16 @@ public interface GuideMEClientPlatform {
      */
     boolean renderCustomFluid(FluidRenderer fluidRenderer, FluidState fluidState, BlockAndTintGetter level,
             BlockPos pos, FluidRenderer.Output output, BlockState blockState);
+
+    /**
+     * Gives loaders a chance to tessellate a block model that requires loader-specific level context.
+     *
+     * @return true if the model was rendered, false to use the vanilla model renderer.
+     */
+    default boolean renderCustomBlock(BlockQuadOutput output, boolean ambientOcclusion, BlockAndTintGetter level,
+            BlockPos pos, BlockState blockState, BlockStateModel model, long seed) {
+        return false;
+    }
 
     /**
      * Runs the given runnable once at the end of the next client tick.

@@ -223,7 +223,11 @@ public class GuidebookLevelRenderer {
             var model = modelManager.getBlockStateModelSet().get(blockState);
             poseStack.pushPose();
             poseStack.translate(pos.getX(), pos.getY(), pos.getZ());
-            blockRenderer.tesselateBlock(quadOutput, 0, 0, 0, level, pos, blockState, model, blockState.getSeed(pos));
+            var seed = blockState.getSeed(pos);
+            if (!GuideMEClientPlatform.get().renderCustomBlock(quadOutput, ambientOcclusion, level, pos, blockState,
+                    model, seed)) {
+                blockRenderer.tesselateBlock(quadOutput, 0, 0, 0, level, pos, blockState, model, seed);
+            }
             poseStack.popPose();
         }
     }
