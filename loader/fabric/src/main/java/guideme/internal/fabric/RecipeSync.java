@@ -16,11 +16,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeMap;
 import net.minecraft.world.item.crafting.RecipeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Server-side part of the Fabric recipe synchronization. See {@link SyncRecipesPayload}.
  */
 public final class RecipeSync {
+    private static final Logger LOG = LoggerFactory.getLogger(RecipeSync.class);
+
     /**
      * Number of recipes per chunk payload, to stay well below the custom payload size limit.
      */
@@ -50,9 +54,18 @@ public final class RecipeSync {
 
         List<RecipeHolder<?>> recipes = new ArrayList<>();
         List<Identifier> typeIds = new ArrayList<>();
-        for (var recipeType : GuideME.SYNCED_RECIPE_TYPES) {
+        // Our own default-handler types plus everything add-ons contributed via GuidesCommon#addSyncedRecipeTypes.
+        // Unlike NeoForge (where all mods' sendRecipes requests are merged into one packet and one
+        // RecipesReceivedEvent), this payload is the ONLY source for GuideME's client-side recipe map, so an add-on
+        // type that is missing here can never be rendered by a <RecipeFor/> tag.
+        for (var recipeType : GuideME.getSyncedRecipeTypes()) {
+            var typeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipeType);
+            if (typeId == null) {
+                LOG.warn("Skipping unregistered recipe type {} in recipe sync", recipeType);
+                continue;
+            }
             recipes.addAll(recipesOfType(recipeMap, recipeType));
-            typeIds.add(BuiltInRegistries.RECIPE_TYPE.getKey(recipeType));
+            typeIds.add(typeId);
         }
 
         ServerPlayNetworking.send(player, new SyncRecipesPayload(true, List.of(), Optional.empty()));

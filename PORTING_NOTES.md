@@ -345,3 +345,31 @@ Shadow relocates the mixin class's own references, so the prod-jar mixin correct
   DOES run on :fabric since 2026-07-10 (fabric-loader-junit; see the build-layout notes above).
 - Datagen (language/model providers) is NeoForge-only; regenerate via :neoforge runData.
 - ProGuard not applied to the fabric jar (published unshrunk).
+
+## Add-on recipe types must be registered — `GuidesCommon.addSyncedRecipeTypes` (2026-07-25)
+
+Live bug on the dedicated server: AE2's guidebook rendered
+`Couldn't find recipe for ae2:damaged_budding_quartz` for `<RecipeFor id="damaged_budding_quartz" />`
+while the vanilla crafting recipes on the same page were fine.
+
+**Cause.** `RecipeCompiler` resolves `<Recipe/>`, `<RecipeFor/>`, `<RecipesFor/>` against
+`Platform#getRecipeMap()` → `GuideMEClient#recipeMap`, i.e. the map built from OUR sync payload alone.
+On NeoForge that is effectively "everything every mod asked for": `OnDatapackSyncEvent` merges all
+`sendRecipes` requests into one `ReferenceSet`, one packet and one `RecipesReceivedEvent`, so an add-on
+that syncs its own recipe types incidentally fills GuideME's client map too (this is exactly what AE2
+relies on — its `getServerSyncedRecipeTypes()` list carries a `// For GuideME` comment). On Fabric each
+mod owns a payload and a client-side map: `ae2:sync_recipes` fed AE2's map, `guideme:sync_recipes` fed
+ours with only the four built-in types, and every add-on recipe type in a guide page failed to resolve.
+
+**API.** `GuideME.SYNCED_RECIPE_TYPES` (public static final List) → private `LinkedHashSet` +
+`GuideME#getSyncedRecipeTypes()` / `GuideME#addSyncedRecipeTypes(...)`, exposed publicly as
+**`GuidesCommon.addSyncedRecipeTypes(RecipeType<?>...)`** — call it during mod init on both sides,
+paired with the `RecipeTypeMappingSupplier` that renders the type. Both loader sync paths consume the
+union (NeoForge dedupes for free; the Fabric sender skips + warns on types with no registry key).
+`RecipesReceivedEvent`-based behavior on NeoForge is unchanged: the union it sends is identical to what
+the add-on already requested itself.
+
+**Why no gate caught it:** the guide export runs without a server, so `Platform#getRecipeMap()` falls
+back to `Platform.fallbackClientRecipeMap` (the complete recipe manager) and every page renders. Only a
+client attached to a server (integrated OR dedicated — this is NOT an MP-only bug) exercises the synced
+map. The regression guard lives in AE2's fabric gametests (`guideme_recipe_sync_types`).

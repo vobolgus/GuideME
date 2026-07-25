@@ -11,7 +11,6 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
@@ -69,8 +68,10 @@ public class GuideMENeoForge {
                 (payload, context) -> payload.handle(context.player()));
     }
 
-    // We send the recipe types for which we have default handlers
+    // We send the recipe types for which we have default handlers, plus whatever add-ons contributed through
+    // GuidesCommon#addSyncedRecipeTypes. NeoForge aggregates every mod's request into one set, so asking for a
+    // type another mod already asked for costs nothing.
     private void registerRecipeSync(OnDatapackSyncEvent event) {
-        event.sendRecipes(GuideME.SYNCED_RECIPE_TYPES.toArray(new RecipeType<?>[0]));
+        event.sendRecipes(GuideME.getSyncedRecipeTypes());
     }
 }
