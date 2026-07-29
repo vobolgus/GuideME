@@ -1,12 +1,13 @@
 # GuideME Fabric Port — Notes
 
-Branch: `fabric-26.1` (based on `v26.1.10-alpha`). Goal: dual-loader Gradle structure
+Branch: `fabric-26.1` (based on `v26.1.12-beta`; previously `v26.1.10-alpha` — see "Rebase log").
+Goal: dual-loader Gradle structure
 mirroring the recipe proven in the sibling AE2 repo (`Applied-Energistics-2`, branch with
 `loader/neoforge` + `loader/fabric`).
 
 **STATUS: code port COMPLETE.** `src/main/java` has zero `net.neoforged` imports; both
 loaders build green (minus the pre-existing `javaImmaculateCheck` failure, see below);
-`org.appliedenergistics:guideme-fabric:26.1.10-alpha` (shaded jar) publishes to mavenLocal.
+`org.appliedenergistics:guideme-fabric:26.1.12-beta` (shaded jar) publishes to mavenLocal.
 See "Code port (Phase 2)" sections at the bottom for the seams AE2's Phase 3 needs.
 
 ## What was done (build restructure, no code port yet)
@@ -177,10 +178,11 @@ rebase (formatting-only diffs, safe to fold into the rebase commit).
    `:fabric:build -x :fabric:javaImmaculateCheck` green (the immaculate failure is the same
    PRE-EXISTING formatting drift in unmodified upstream shared sources that already failed on
    `:neoforge` at the base commit — :fabric now also runs the check over the shared tree).
-3. **Publish:** `version=26.1.10-alpha` pinned in `gradle.properties` (without it the version
-   is derived from the branch name → `26.1.11-alpha.0+fabric-26.1`).
+3. **Publish:** `version=26.1.12-beta` pinned in `gradle.properties` (without it the version
+   is derived from the branch name → `26.1.11-alpha.0+fabric-26.1`). **Bump this pin to the new
+   upstream tag as part of every rebase.**
    `./gradlew :fabric:publishToMavenLocal` →
-   `~/.m2/repository/org/appliedenergistics/guideme-fabric/26.1.10-alpha/` (jar+pom+module).
+   `~/.m2/repository/org/appliedenergistics/guideme-fabric/26.1.12-beta/` (jar+pom+module).
 4. **Static smoke:** published jar contains expanded `fabric.mod.json` (id `guideme`,
    version `26.1.10-alpha`, entrypoints below, depends fabricloader>=0.19.3 / fabric-api /
    minecraft ~26.1.2), `guideme.accesswidener` (loom-validated), `guideme.mixins.json` +
@@ -373,3 +375,49 @@ the add-on already requested itself.
 back to `Platform.fallbackClientRecipeMap` (the complete recipe manager) and every page renders. Only a
 client attached to a server (integrated OR dedicated — this is NOT an MP-only bug) exercises the synced
 map. The regression guard lives in AE2's fabric gametests (`guideme_recipe_sync_types`).
+
+## Rebase log
+
+### 2026-07-29 — `v26.1.10-alpha` → `v26.1.12-beta` (clean, zero conflicts)
+
+Upstream range `v26.1.10-alpha..v26.1.12-beta` = 4 commits / 5 files:
+
+- `c21079d` **LytSlot** (#93) — new public API `isSlotVisible()` / `setSlotVisible(boolean)`;
+  when hidden, the slot background is not drawn and the item renders at z=0 instead of z=1.
+  Additive, default `true` → no behavior change for existing pages. Add-on-facing API.
+- `40e2cb4` **keybind category translation** (#90) — lang key `key.guideme.category` →
+  `key.category.guideme.category` (vanilla 26.1 `KeyMapping.Category` derives its translation key
+  as `key.category.<namespace>.<path>`; our category id is `guideme:category`). Touches
+  `GuideMELanguageProvider` — which lives in `loader/neoforge/src` on this branch; **the rebase
+  applied it there automatically** (git tracked the port commit's move as a rename), and the
+  generated `src/generated/resources/.../en_us.json` came along on the shared path.
+  This fixes an untranslated keybind category on BOTH loaders.
+- `fa1374e` changelog only.
+- `6a5f4d4` **DocumentScreen.calculateEffectiveScale** — `(float)(effectiveScale / currentScale)`
+  → `(float) effectiveScale / currentScale`: the double→int-ish integer division could yield 0 and
+  make the whole guide invisible at certain GUI scales. Real end-user fix, applies to Fabric too.
+
+Nothing touched page loading / `_<lang>/` resolution (`LangUtil`, `MutableGuide#loadAssetInternal`),
+the recipe-sync paths, the AT/AW, or any platform seam — so localized-guide overlays and the AE2
+integration surface are unaffected apart from the two additive LytSlot methods.
+
+Procedure that worked (keep for the next one):
+
+1. `git fetch origin --tags` (`origin` = upstream AppliedEnergistics, `fork` = vobolgus).
+2. `git rebase v26.1.12-beta` — all 8 fork commits replayed with **no conflicts**.
+3. `gradle.properties`: `version=` pin bumped to the new tag.
+4. **AT↔AW check**: upstream changed neither `src/main/resources/META-INF/accesstransformer.cfg`
+   (40 entries) nor anything needing new access — AW (42 entries: 40 mirrored + fabric-only
+   `ItemModels.ID_MAPPER` group) untouched. `:fabric:validateAccessWidener` green.
+5. **Formatter**: as predicted, upstream shipped `LytSlot` unformatted (`{return visibleSlot;}`,
+   `visibleSlot? 1: 0`). `./gradlew :fabric:javaImmaculateApply :neoforge:javaImmaculateApply
+   :markdown:javaImmaculateApply` → 1 file, formatting-only.
+6. Gates, all green: `:neoforge:build` (incl. proguard chain + javadoc + check) and `:fabric:build`
+   (incl. `javaImmaculateCheck`, `validateAccessWidener`, shadowJar) with **no `-x` exclusions**;
+   shared JUnit suite **379/379 on both loaders** (unchanged count — the upstream delta adds no tests).
+7. `:fabric:publishToMavenLocal` → `org.appliedenergistics:guideme-fabric:26.1.12-beta`.
+
+⚠ Gradle JVM: use the **JDK 21** launcher (`$HOME/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/
+jdk-21.0.11+10/Contents/Home`); the toolchain still compiles with JDK 25 (`java_version=25`).
+`/usr/libexec/java_home -v 25` does NOT resolve on this machine (only 21 and 26 are system-installed)
+and the JDK 26 launcher breaks `proguardJar` (see "Build gates").
