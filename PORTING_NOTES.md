@@ -5,10 +5,19 @@ Goal: dual-loader Gradle structure
 mirroring the recipe proven in the sibling AE2 repo (`Applied-Energistics-2`, branch with
 `loader/neoforge` + `loader/fabric`).
 
-**STATUS: code port COMPLETE.** `src/main/java` has zero `net.neoforged` imports; both
-loaders build green (minus the pre-existing `javaImmaculateCheck` failure, see below);
+**STATUS: code port COMPLETE and SHIPPING.** `src/main/java` has zero `net.neoforged` imports;
 `org.appliedenergistics:guideme-fabric:26.1.12-beta` (shaded jar) publishes to mavenLocal.
 See "Code port (Phase 2)" sections at the bottom for the seams AE2's Phase 3 needs.
+
+**State 2026-07-29:** rebased onto upstream **`v26.1.12-beta`** (8 fork commits replayed, **zero
+conflicts** — see the last entry of the Rebase log), **pushed** to `fork/fabric-26.1` (in sync, no
+local-only commits), and the AE2 fork bumped to it. Both loaders build green **with no `-x`
+exclusions** — the old "minus the pre-existing `javaImmaculateCheck` failure" caveat no longer
+applies, since `javaImmaculateApply` was run across the shared tree; shared JUnit **379/379 on both
+loaders**. The shipped `guideme-fabric-26.1.12-beta.jar` runs in the live pack alongside
+`appliedenergistics2-fabric-26.1.10-beta.jar`, so the "first runtime smoke test still outstanding"
+note further down (a Phase-2 record) is closed. Open items across the forks are indexed in
+`~/IdeaProjects/create26-ports/BACKLOG.md`.
 
 ## What was done (build restructure, no code port yet)
 
