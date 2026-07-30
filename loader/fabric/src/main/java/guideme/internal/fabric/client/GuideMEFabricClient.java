@@ -1,6 +1,7 @@
 package guideme.internal.fabric.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.systems.RenderSystem;
 import guideme.internal.GuideMEClient;
 import guideme.internal.GuideReloadListener;
 import guideme.internal.command.GuideClientCommand;
@@ -68,10 +69,7 @@ public class GuideMEFabricClient implements ClientModInitializer {
                 GuideMEClient.KEYBIND_CATEGORY)));
 
         ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipFlag, lines) -> {
-            // The callback has no player context; skip cases that clearly aren't a tooltip shown
-            // to the local player (i.e. building the creative menu search tree during startup).
-            var minecraft = Minecraft.getInstance();
-            if (minecraft.player == null || minecraft.screen == null) {
+            if (!isLocalPlayerTooltip()) {
                 return;
             }
             OpenGuideHotkey.onItemTooltip(stack, tooltipFlag, lines);
@@ -131,6 +129,47 @@ public class GuideMEFabricClient implements ClientModInitializer {
         // entrypoint so they only exist with an integrated server, mirroring NeoForge's client-dist mod.
         CommandRegistrationCallback.EVENT.register(
                 (dispatcher, registryAccess, environment) -> StructureCommands.register(dispatcher));
+    }
+
+    /**
+     * Decides whether an {@link ItemTooltipCallback} invocation is a tooltip actually being shown to the local player,
+     * which is the only case {@link OpenGuideHotkey#onItemTooltip} is contracted to receive.
+     * <p>
+     * NeoForge's {@code ItemTooltipEvent} carries the player the tooltip is built for and GuideME filters on it
+     * ({@code evt.getEntity() != Minecraft.getInstance().player}). Fabric's callback has no player parameter, so the
+     * same cases have to be recognised from client state instead.
+     * <p>
+     * The thread check is the load-bearing one and must stay FIRST. On 26.1
+     * {@code net.minecraft.client.multiplayer.SessionSearchTrees} builds the creative-menu and recipe-book search trees
+     * on {@code Util.backgroundExecutor()} ({@code CompletableFuture.supplyAsync}) and calls
+     * {@code ItemStack.getTooltipLines(ctx, null, flag)} from there — with a live player and screen, so the checks
+     * below do not catch it. {@link OpenGuideHotkey} then measures its "hold to show" hint with {@code Font.width},
+     * which lazily bakes glyphs into the font texture, which is a GL call: "RenderSystem called from wrong thread". The
+     * exception surfaces later on the render thread when the screen joins the search-tree future (observed as a crash
+     * while typing in the creative search box, 2026-07-30). Skipping off-thread invocations only costs the progress-bar
+     * line, which is a purely visual affordance — the search index does not need it — and it additionally keeps
+     * {@link OpenGuideHotkey}'s static hotkey state confined to the client thread.
+     * <p>
+     * Upstream shipped the same guard on its 1.20.1 branch (commit {@code 59b53582ca}, "Try to fix EMI interfering with
+     * GuideME", GuideME issue #70 — EMI indexes tooltips off-thread) as
+     * {@code if (!Minecraft.getInstance().isSameThread()) return;}, but it was never forward-ported past 1.20.1, so
+     * upstream 26.1 is still exposed to the EMI variant of this on NeoForge. Here the static, null-safe
+     * {@link RenderSystem#isOnRenderThread()} is used instead — same thread in practice (Minecraft's constructor
+     * assigns {@code gameThread} and calls {@code RenderSystem.initRenderThread()} on one thread), but it is the exact
+     * invariant the failing glyph bake asserts and it stays callable without a client instance.
+     */
+    static boolean isLocalPlayerTooltip() {
+        // Short-circuit: the thread check gates the client-state check, it is not merely first by luck.
+        return RenderSystem.isOnRenderThread() && isLocalPlayerVisible();
+    }
+
+    /**
+     * Skips the remaining cases that clearly aren't a tooltip shown to the local player, i.e. the search tree built on
+     * the client thread during startup, before a screen exists.
+     */
+    private static boolean isLocalPlayerVisible() {
+        var minecraft = Minecraft.getInstance();
+        return minecraft.player != null && minecraft.screen != null;
     }
 
     private void handleRecipeSync(GuideMEClient client, SyncRecipesPayload payload) {

@@ -385,6 +385,58 @@ back to `Platform.fallbackClientRecipeMap` (the complete recipe manager) and eve
 client attached to a server (integrated OR dedicated — this is NOT an MP-only bug) exercises the synced
 map. The regression guard lives in AE2's fabric gametests (`guideme_recipe_sync_types`).
 
+## Tooltip callbacks fire OFF the render thread — `ItemTooltipCallback` guard (2026-07-30)
+
+Live single-player crash from a full-pack player: typing in the creative-inventory search box →
+`ReportedException: charTyped event handler` / `IllegalStateException: Rendersystem called from wrong thread`,
+`GlStateManager._bindTexture` ← `FontTexture.add` ← `BitmapProvider$Glyph.bake` ← `Font.width`
+← `OpenGuideHotkey.makeProgressBar` ← `GuideMEFabricClient.lambda$onInitializeClient$0`
+← `ItemTooltipCallback` ← `ItemStack.getTooltipLines` ← `SessionSearchTrees.lambda$getTooltipLines$0`.
+
+**Cause (verified by `javap -c` on `minecraft-merged.jar`, not by reading a decompile).**
+`net.minecraft.client.multiplayer.SessionSearchTrees` schedules every search-tree build on
+`net.minecraft.util.Util.backgroundExecutor()` via `CompletableFuture.supplyAsync` —
+`updateCreativeTooltips` (creative name search), `updateCreativeTags`, and `updateRecipes` (recipe book).
+The name/recipe builders call `getTooltipLines`, whose bytecode is
+`ItemStack.getTooltipLines(ctx, aconst_null /* player */, flag)`. So on 26.1 tooltips are built for real,
+off the render thread, **with a null player**. `creativeNameSearch()` then `join()`s that future on the
+render thread, which is why the exception is reported inside `charTyped` rather than on the worker.
+
+Two consequences:
+
+- **NeoForge is safe by accident of its event shape.** `ItemTooltipEvent` carries the player, and upstream
+  filters `evt.getEntity() != Minecraft.getInstance().player` — null never equals the local player.
+- **Fabric's `ItemTooltipCallback` has no player parameter**, so that filter has no equivalent. The
+  previous stand-in (`minecraft.player == null || minecraft.screen == null`) only catches the *startup*
+  build; once you are in a world with the creative screen open, both are non-null on the worker thread too.
+
+**Fix** (`GuideMEFabricClient.isLocalPlayerTooltip()`, Fabric overlay only — shared sources untouched, so
+the NeoForge twin stays byte-identical to upstream): `RenderSystem.isOnRenderThread() && isLocalPlayerVisible()`.
+The `&&` short-circuit is load-bearing — the thread check must gate the `Minecraft.getInstance()` deref, not
+merely precede it. Off-thread callers get the tooltip minus the hotkey progress bar, which is a purely visual
+affordance the search index does not need; it also keeps `OpenGuideHotkey`'s static state
+(`ticksKeyHeld`, `guidebookPages`, `previousItemId`) confined to the client thread.
+
+**Upstream already fixed this once and lost it.** shartte's commit `59b53582ca` (2025-08-29, GuideME issue
+#70 — EMI indexing tooltips off-thread under Sinytra Connector) added
+`if (!Minecraft.getInstance().isSameThread()) return;` to `OpenGuideHotkey`. It exists **only on the 1.20.1
+branch**; 1.20.4 / 1.21.x / 26.1 / 26.2 / main all lack it. So upstream 26.1 NeoForge is still exposed to the
+EMI variant → **PR-able**: restore the guard in `OpenGuideHotkey.init`'s listener on `26.1`/`main`.
+(We did not carry it into shared code here, to keep the NeoForge side faithful and rebases clean.)
+
+**Other sites audited, none affected.** Only `OpenGuideHotkey.makeProgressBar` reaches `Font` from a tooltip
+path. `GuideItem.appendHoverText` → `GuideMEClientProxy.addGuideTooltip` is also invoked off-thread by the
+search tree, but it only reads `GuideRegistry` and emits `Component`s — no GL (and NeoForge shares that
+exposure verbatim). Every other `Minecraft.font` use in the fork (`DocumentScreen`, `GuideSearchScreen`,
+`RenderContext`, `SiteExporter`, `SceneExporter`) is render-thread-only. `ItemTooltipCallback` is the sole
+Fabric hook the fork registers that vanilla can fire off-thread.
+
+**Regression test:** `loader/fabric/src/test/java/guideme/internal/fabric/client/ItemTooltipThreadGuardTest.java`
+(`:fabric:test`, 379 → 381). It claims the render thread on the JUnit thread, then calls the gate from
+`Util.backgroundExecutor()` — the exact vanilla executor — and asserts it returns `false` without throwing.
+Mutation-verified: deleting the `RenderSystem.isOnRenderThread()` term makes it fail with the off-thread NPE.
+The second test pins the ordering by asserting the gate does *not* short-circuit on the render thread.
+
 ## Rebase log
 
 ### 2026-07-29 — `v26.1.10-alpha` → `v26.1.12-beta` (clean, zero conflicts)
